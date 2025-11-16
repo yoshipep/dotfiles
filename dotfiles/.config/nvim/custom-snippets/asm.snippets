@@ -1,0 +1,24 @@
+snippet attfcn "Declare a function in assembly using att syntax"
+.global $0
+.type $1, STT_FUNC
+endsnippet
+
+snippet nasmfcn "Declare a function in assembly using nasm syntax"
+global $0:function default
+endsnippet
+
+snippet attsection "Declare a section in assembly using att syntax"
+.section $0
+endsnippet
+
+snippet nasmsection "Declare a section in assembly using intel syntax"
+section $0
+endsnippet
+
+snippet attstr "Declare a string in assembly using att syntax"
+.asciz $0
+endsnippet
+
+snippet nasmstr "Declare a string in assembly using nasm syntax"
+$0 db '$1', 0
+endsnippet

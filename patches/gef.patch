@@ -1,0 +1,11 @@
+--- .gef-2025.01.py	2025-02-18 09:35:26.744385763 +0100
++++ .gef-2025.01.py	2025-02-18 09:35:32.776385538 +0100
+@@ -1258,7 +1258,7 @@
+         else:
+             opcodes_len = int(format_spec[:-1])
+ 
+-        opcodes_text = "".join(f"{b:02x}" for b in self.opcodes[:opcodes_len])
++        opcodes_text = "\x20".join(f"{b:02x}" for b in self.opcodes[:opcodes_len])
+         if opcodes_len < len(self.opcodes):
+             opcodes_text += "..."
+         return (f"{self.address:#10x} {opcodes_text:{opcodes_len * 2 + 3:d}s} {self.location:16} "

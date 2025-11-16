@@ -1,0 +1,26 @@
+[user]
+	email = jcomes@jcomes.org
+	name = Josep Comes
+[alias]
+	s = status
+	lg = log --oneline --decorate --all --graph
+[core]
+	pager = delta
+	editor = vim
+[interactive]
+	diffFilter = delta --color only
+[delta]
+	navigate = true
+	side-by-side = true
+	hyperlinks = true
+	line-numbers = true
+[merge]
+	conflictstyle = diff3
+	tool = meld
+[diff]
+	colorMoved = default
+	algorithm = histogram
+[init]
+	defaultBranch = master
+[merge]
+	tool = meld

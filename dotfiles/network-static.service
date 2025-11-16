@@ -1,0 +1,15 @@
+[Unit]
+Description=Configure static IP address
+Before=firewall.service network-online.target
+Wants=network-pre.target
+After=network-pre.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/etc/network-static.sh start
+ExecStop=/etc/network-static.sh stop
+
+[Install]
+WantedBy=multi-user.target

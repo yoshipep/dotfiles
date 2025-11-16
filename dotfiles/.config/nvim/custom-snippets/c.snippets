@@ -1,0 +1,84 @@
+snippet description "Add description to the program"
+
+/*
+ * $0
+ * Author: $1 <$2>
+ * Date: $3
+ */
+
+endsnippet
+
+snippet comment-label "put a label section comment"
+// ---------------------- //
+//  --- $0 ---  //
+// ---------------------- //
+endsnippet
+
+snippet comment-desc "put a description section comment"
+/**
+ * $0
+ *
+ *
+ *
+ *
+ *
+ */
+endsnippet
+
+snippet comment-separator "put a section separator comment"
+// ------------------------------------------------------------------------- //
+endsnippet
+
+snippet hello-world-main "Simple hello-world program"
+#include <stdio.h>
+
+int main(int argc, char *argv[])
+{
+        printf("Hello\n");
+        return 0;
+}
+endsnippet
+
+snippet mmap-anon "mmap() anon RW"
+mmap(NULL, $0, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+endsnippet
+
+snippet include
+#include <$0>
+endsnippet
+
+snippet include_l
+#include "$0"
+endsnippet
+
+snippet x86_breakpoint "Debugger breakpoint interrupt (int3) for x86_64"
+__asm__ volatile(".byte 0xcc");
+endsnippet
+
+snippet asm "Inline asm"
+__asm__(".intel_syntax noprefix\n\t"
+		"$0"
+		 ".att_syntax prefix"
+		 :
+		 :
+		 :);
+endsnippet
+
+snippet a64_breakpoint
+__asm__ volatile("brk #0xff");
+endsnippet
+
+snippet attribute
+__attribute__(($0))
+endsnippet
+
+snippet fptr
+int (*$0)(int, int);
+endsnippet
+
+snippet guard "Generate ifdef guards"
+#ifndef `!p snip.rv = snip.basename.upper().replace('.', '_') + '_H_'`
+#define `!p snip.rv = snip.basename.upper().replace('.', '_') + '_H_'`
+
+#endif // `!p snip.rv = snip.basename.upper().replace('.', '_') + '_H_'`
+endsnippet

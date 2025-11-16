@@ -1,0 +1,125 @@
+snippet shebang "Python shebang"
+#!/usr/bin/env python3
+
+endsnippet
+
+snippet description "Add description to the program"
+
+'''
+ * $0
+ * Author: $1 <$2>
+ * Date: $3
+'''
+
+endsnippet
+
+snippet main-template "Simple empty template program"
+#!/usr/bin/env python3
+
+import sys
+
+
+def main():
+
+    $0
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
+
+endsnippet
+
+snippet ipython-embed "Import ipython snippet"
+import IPython
+IPython.embed()
+endsnippet
+
+snippet section-comment "Commentary section"
+
+"""
+    $0
+"""
+
+endsnippet
+
+snippet argument-parser "Template for argparser usage"
+import argparse
+import os
+
+def get_argparser():
+    # Lambdas for ArgumentParser
+    def raise_ex(e): raise e
+    path = lambda x: x if os.path.exists(x) else raise_ex(
+        argparse.ArgumentTypeError("'%s' is not a valid path" % x)
+    )
+
+    class CustomHelpFormatter(argparse.HelpFormatter):
+        """Custom Argparse Formatter for generating usage messages and argument help strings.
+        This is a slightly modified version to disable metavar for short options in help().
+        """
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def _format_action_invocation(self, action):
+            if not action.option_strings:
+                default = self._get_default_metavar_for_positional(action)
+                metavar, = self._metavar_formatter(action, default)(1)
+                return metavar
+            else:
+                parts = []
+
+                # if the Optional doesn't take a value, format is:
+                #    -s, --long
+                if action.nargs == 0:
+                    parts.extend(action.option_strings)
+
+                # if the Optional takes a value, format is:
+                #    -s ARGS, --long ARGS
+                else:
+                    default = self._get_default_metavar_for_optional(action)
+                    args_string = self._format_args(action, default)
+                    for option_string in action.option_strings:
+                        # parts.append('%s %s' % (option_string, args_string)) # **
+                        parts.append('%s' % option_string) # **
+                    # Add the 'metavar' only at the end
+                    parts[-1] += ' %s' % args_string # **
+                # ----------------------- #
+                return ', '.join(parts)
+
+    parser = argparse.ArgumentParser(
+        description='<Brief description of the script>',
+        formatter_class=(lambda prog: CustomHelpFormatter(sys.argv[0], max_help_position=50)),
+    )
+
+    parser.add_argument('-$0', '--<arg>', dest='<var>', metavar=<metavar>, type=<type>,
+        help='<Arg description>')
+
+    return parser
+endsnippet
+
+snippet hexdump-fcn "Hexdump function definition"
+# Hexdump-like console log
+# perline: number of bytes per line to be shown in the hexdump
+# addr:  optional offset to rebase the left part of the hexdump (address)
+def hexdump(data, perline=16, addr=0):
+    length = len(data)
+    result = []
+
+    # Compute max address length.
+    max_addr_len = len(f"{addr + length - 1:x}")
+    max_addr_len = max(8, max_addr_len) # Ensure at least 8 digits for the address.
+
+    for i in range(0, length, perline):
+        chunk = data[i:i+perline]
+        hexstr = ' '.join(f'{c:02x}' for c in chunk)
+        ascii_str = ''.join((chr(c) if 32 <= c <= 126 else '.') for c in chunk)
+        padding_size = ((3 * perline) - len(hexstr)) - 1
+        hexstr += " " * padding_size
+        result.append(f"{addr+i:#0{max_addr_len}x}  {hexstr}  |{ascii_str}|")
+    result.append(f"{addr+length:#0{max_addr_len}x}")
+
+    return '\n'.join(result)
+endsnippet
+

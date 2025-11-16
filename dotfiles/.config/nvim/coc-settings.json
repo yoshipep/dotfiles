@@ -1,0 +1,52 @@
+{
+  "inlayHint.enable": false,
+  "snippets.ultisnips.directories": [
+    "custom-snippets"
+  ],
+  "clangd.path": "/usr/bin/clangd",
+  "python.pythonPath": "/usr/bin/python3",
+  "suggest.floatConfig": {
+    "border": true
+  },
+  "diagnostic.floatConfig": {
+    "border": true
+  },
+  "signature.floatConfig": {
+    "border": true
+  },
+  "hover.floatConfig": {
+    "border": true
+  },
+  "clangd.arguments": [
+    "--header-insertion=never", "--compile-commands-dir=build"
+  ],
+  "snippets.ultisnips.pythonPrompt": false,
+  "coc.source.vimtex.filetypes": [
+    "tex", "latex"
+  ],
+  "coc.source.vimtex.enable": true,
+  "ltex.language": "es",
+  "ltex.enabled": ["latex", "bibtex", "markdown"],
+  "languageserver": {
+    "bash": {
+      "command": "bash-language-server",
+      "args": [
+        "start"
+      ],
+      "filetypes": [
+        "sh"
+      ],
+      "ignoredRootPaths": [
+        "~"
+      ]
+    }
+  },
+  "typescript.implementationsCodeLens.enabled": true,
+  "typescript.referencesCodeLens.enabled": true,
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.format.semicolons": "insert",
+  "javascript.implementationsCodeLens.enabled": true,
+  "javascript.referencesCodeLens.enabled": true,
+  "javascript.preferences.quoteStyle": "single",
+  "javascript.format.semicolons": "insert"
+}

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Check if the required arguments are provided
+if [ $# -ne 2 ]; then
+  echo "Usage: $0 <file> <offset>"
+  exit 1
+fi
+
+FILE=$1
+OFFSET=$2
+
+# Check if the file exists
+if [ ! -f "$FILE" ]; then
+  echo "Error: File '$FILE' not found!"
+  exit 1
+fi
+
+# Convert hexadecimal offset to decimal if needed
+if [[ "$OFFSET" =~ ^0x[0-9a-fA-F]+$ ]]; then
+  OFFSET=$(printf "%d" "$OFFSET")
+fi
+
+# Validate that the offset is a valid positive integer
+if ! [[ "$OFFSET" =~ ^[0-9]+$ ]]; then
+  echo "Error: Offset must be a positive integer or valid hexadecimal value!"
+  exit 1
+fi
+
+# Use dd to seek to the offset and read 16 bytes
+DATA=$(dd if="$FILE" bs=1 skip="$OFFSET" count=16 2>/dev/null | xxd -g1)
+
+if [ -z "$DATA" ]; then
+  echo "Error: Could not read data at offset $OFFSET"
+  exit 1
+fi
+
+echo "$DATA"
+

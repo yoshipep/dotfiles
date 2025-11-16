@@ -1,0 +1,16 @@
+services:
+  opengrok:
+    container_name: opengrok
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080/tcp"
+    environment:
+      SYNC_PERIOD_MINUTES: '10'
+      NOMIRROR: 'true'
+      WORKERS: '4'
+      INDEXER_OPT: '-i d:.cache -i f:.gitignore -i f:Makefile -i f:compile_commands.json'
+    volumes:
+      - '~/repos:/opengrok/src/'
+      - '~/.opengrok/etc/:/opengrok/etc/'
+      - '~/.opengrok/data/:/opengrok/data/'

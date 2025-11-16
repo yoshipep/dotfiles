@@ -1,0 +1,35 @@
+[global_config]
+  window_state = maximise
+  inactive_color_offset = 0.8035714285714286
+  suppress_multiple_term_dialog = True
+  clear_select_on_copy = True
+[keybindings]
+  new_tab = <Primary><Shift>t
+  split_horiz = <Primary><Shift>h
+  split_vert = <Primary><Shift>Return
+  move_tab_right = <Primary><Shift>Page_Down
+  move_tab_left = <Primary><Shift>Page_Up
+  new_terminator = <Primary>n
+[profiles]
+  [[default]]
+    background_darkness = 0.75
+    background_type = transparent
+    cursor_color = "#aaaaaa"
+    font = Agave Nerd Font 13
+    foreground_color = "#ffffff"
+    show_titlebar = False
+    scrollback_lines = 1000
+    scrollback_infinite = True
+    palette = "#171421:#c01c28:#26a269:#a2734c:#12488b:#a347ba:#2aa1b3:#d0cfcc:#5e5c64:#f66151:#33da7a:#e9ad0c:#2a7bde:#c061cb:#33c7de:#ffffff"
+    use_system_font = False
+    copy_on_selection = True
+[layouts]
+  [[default]]
+    [[[window0]]]
+      type = Window
+      parent = ""
+    [[[child1]]]
+      type = Terminal
+      parent = window0
+      profile = default
+[plugins]

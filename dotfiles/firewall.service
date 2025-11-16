@@ -1,0 +1,14 @@
+[Unit]
+Description=Firewall service (iptables)
+Before=network-pre.target
+Wants=network-pre.target
+Wants=systemd-networkd.service
+
+[Service]
+RemainAfterExit=yes
+Type=oneshot
+ExecStart=/etc/firewall.sh start
+ExecReload=/etc/firewall.sh restart
+
+[Install]
+WantedBy=multi-user.target

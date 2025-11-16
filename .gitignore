@@ -1,0 +1,4 @@
+# SSH keys and sensitive data
+dotfiles/.ssh/id_*
+dotfiles/.ssh/*.pem
+dotfiles/.ssh/*.key
