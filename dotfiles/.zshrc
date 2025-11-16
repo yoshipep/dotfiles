@@ -14,7 +14,8 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
 source ~/.oh-my-zsh/custom/themes/powerlevel10k
-export PATH="$HOME/.local/bin:$HOME/scripts:/usr/local/texlive/2024/bin/x86_64-linux:$PATH"
+TEXLIVE_BIN="$(command ls -d /usr/local/texlive/*/bin/x86_64-linux 2>/dev/null | sort -V | tail -n1)"
+export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:${TEXLIVE_BIN}:$PATH"
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
 export MAKEFLAGS="-j$(nproc)"
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | batcat -p -lman'"

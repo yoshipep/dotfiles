@@ -133,6 +133,9 @@ checkPackages() {
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
+	mkdir -p "$HOME/.npm-global"
+	npm config set prefix "$HOME/.npm-global" --location=user
+	export PATH="$HOME/.npm-global/bin:$PATH"
 	npm i -g neovim
 	npm i -g yarn
 	npm i -g bash-language-server
@@ -393,7 +396,7 @@ importCFG() {
 	fi
 
 	# Configure networking
-	read -n 1 -r -s -p $'[!] Enable now the ipv4 forwarding in /etc/sysctl.conf\n'
+	read -n 1 -r -s -p $'[!] Enable now the ipv4 forwarding in /etc/sysctl.conf\nPress enter to open the file...\n'
 	sudo vim /etc/sysctl.conf
 
 	# Configure static IP
