@@ -27,7 +27,7 @@ if ! [[ "$OFFSET" =~ ^[0-9]+$ ]]; then
 fi
 
 # Use dd to seek to the offset and read 16 bytes
-DATA=$(dd if="$FILE" bs=1 skip="$OFFSET" count=16 2>/dev/null | xxd -g1)
+DATA=$(dd if="$FILE" bs=1 skip="$OFFSET" count=16 2>/dev/null | xxd -g1 -o "$OFFSET")
 
 if [ -z "$DATA" ]; then
   echo "Error: Could not read data at offset $OFFSET"
