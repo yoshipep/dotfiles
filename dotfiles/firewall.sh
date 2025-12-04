@@ -120,9 +120,49 @@ do_disable_host_net() {
     echo '1' > /etc/.fw_status
 }
 
+# Enable network access for Docker containers only (web browsing, all ports)
+do_enable_docker_net() {
+    # First, remove the DROP rules for Docker traffic
+    remove_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+    remove_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+
+    # Allow Docker containers to initiate NEW outbound connections
+    # Docker uses bridge interfaces like docker0, br-xxxxx
+    # INSERT at top to override Docker's default rules
+    insert_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j ACCEPT"
+    insert_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j ACCEPT"
+
+    # Allow return traffic from WAN to Docker networks
+    insert_rule "FORWARD -i ${WAN_IFACE} -o docker+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+    insert_rule "FORWARD -i ${WAN_IFACE} -o br-+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+
+    # Note: MASQUERADE rule already handles NAT for Docker traffic
+    echo '2' > /etc/.fw_status
+}
+
+# Disable network access for Docker containers only
+do_disable_docker_net() {
+    # Remove the ACCEPT rules from do_enable_docker_net
+    remove_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j ACCEPT"
+    remove_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j ACCEPT"
+    remove_rule "FORWARD -i ${WAN_IFACE} -o docker+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+    remove_rule "FORWARD -i ${WAN_IFACE} -o br-+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
+
+    # Re-add the DROP rules to block Docker traffic
+    # INSERT at top to override Docker's default rules
+    insert_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+    insert_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+    echo '1' > /etc/.fw_status
+}
+
 # Idempotent rule addition: only adds rule if it doesn't already exist
 append_rule() {
     eval "iptables -C $1 >/dev/null 2>&1" || eval "iptables -A $1"
+}
+
+# Idempotent rule insertion: only inserts rule at top if it doesn't already exist
+insert_rule() {
+    eval "iptables -C $1 >/dev/null 2>&1" || eval "iptables -I $1"
 }
 
 # Safe rule removal: only removes rule if it exists
@@ -167,6 +207,12 @@ do_start() {
 
     # Drop all incoming connection attempts (this is a client-only host)
     append_rule "INPUT -p tcp --syn -j DROP"
+
+    # -- DOCKER BLOCKING (default: no internet for Docker) --
+    # Block Docker containers from accessing the internet by default
+    # INSERT these rules at the top so they come before Docker's own rules
+    insert_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+    insert_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
 
     # -- VM FORWARDING RULES --
     # Allow Mail VMs to initiate outbound connections to specific ports (IMAP/SMTP)
@@ -259,6 +305,14 @@ case "$1" in
         eval "echo '[+] Firewall: Disabling traffic in the host' $SILENT"
         do_disable_host_net
         ;;
+    enable-docker-net)
+        eval "echo '[+] Firewall: Enabling external traffic for Docker containers' $SILENT"
+        do_enable_docker_net
+        ;;
+    disable-docker-net)
+        eval "echo '[+] Firewall: Disabling external traffic for Docker containers' $SILENT"
+        do_disable_docker_net
+        ;;
     flush)
         eval "echo '[+] Firewall: WARNING! Flushing all IPTables chains. Some services may be broken or need a restart (i.e.: docker)' $SILENT"
         do_flush_all_chains
@@ -272,7 +326,7 @@ case "$1" in
         def_policy_accept
         ;;
     *)
-        echo "Usage: $0 start|restart|enable-net|disable-net|flush|enable|disable" >&2
+        echo "Usage: $0 start|restart|enable-net|disable-net|enable-docker-net|disable-docker-net|flush|enable|disable" >&2
         exit 1
         ;;
 esac
