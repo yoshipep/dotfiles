@@ -5,22 +5,15 @@
 IPTABLES=/usr/sbin/iptables
 
 # ============================================================================
-# USER CONFIGURATION - MODIFY THESE VARIABLES ACCORDING TO YOUR SETUP
+# NETWORK CONFIGURATION - AUTO-GENERATED FROM network.conf
+# ============================================================================
+# These values are automatically substituted from network.conf during installation.
+# Do not edit directly - modify network.conf and re-run install_env.sh instead.
 # ============================================================================
 
-# DNS Server: IP address of your DNS server (e.g., Pi-hole, router, or public DNS)
-DNS=''
-
-# WAN Interface: Physical network interface name (e.g., eth0, eno1, enp0s3)
-# Run 'ip link' to find your interface name
-WAN_IFACE=''
-
-# Host PC IP: IP address of this machine
-PC=''
-
-# ============================================================================
-# END USER CONFIGURATION
-# ============================================================================
+DNS='__DNS_SERVER__'
+WAN_IFACE='__WAN_IFACE__'
+PC='__HOST_IP__'
 
 # -- PORTS --
 SSH_PORT='22'

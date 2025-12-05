@@ -1,0 +1,35 @@
+# ============================================================================
+# NETWORK CONFIGURATION
+# ============================================================================
+# This file contains your network-specific configuration that will be
+# automatically substituted into firewall.sh, network-static.sh, and Docker
+# Compose files during installation.
+#
+# INSTRUCTIONS:
+#   1. Copy this file: cp network.conf.example network.conf
+#   2. Edit network.conf with YOUR network settings below
+#   3. Run install_env.sh to apply configuration
+#
+# IMPORTANT: Do NOT commit network.conf (it's in .gitignore)
+# ============================================================================
+
+# Your DNS server IP (Pi-hole, router, or public DNS like 8.8.8.8)
+# Example: DNS_SERVER=192.168.1.53
+DNS_SERVER=
+
+# This machine's static IP address
+# Example: HOST_IP=192.168.1.2
+HOST_IP=
+
+# Your router's IP address
+# Example: GATEWAY=192.168.1.1
+GATEWAY=
+
+# Network mask in CIDR notation (default: 24 = 255.255.255.0)
+# Example: NETMASK=24
+NETMASK=24
+
+# Network interface (leave empty for auto-detection)
+# Run 'ip link' to see interfaces. Only set if auto-detection fails.
+# Example: WAN_IFACE=eth0
+WAN_IFACE=

@@ -349,19 +349,96 @@ importCFG() {
 	cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
 	chmod +x "$HOME/scripts/"*
 
-	# Install Docker configurations
-	mkdir -p "$HOME/dockers"
-	cp -r "$REPO_DIR/dockers/"* "$HOME/dockers/"
+	# ============================================================================
+	# NETWORK CONFIGURATION
+	# ============================================================================
+	echo ""
+	echo "[+] Configuring network settings..."
 
-	for i in $(/bin/ls "$HOME/dockers" 2>/dev/null); do
-		docker compose -f "$HOME/dockers/$i/docker-compose.yaml" up -d 2>/dev/null || true
+	# Check if network.conf exists, if not create from example
+	if [ ! -f "$REPO_DIR/network.conf" ]; then
+		cp "$REPO_DIR/network.conf.example" "$REPO_DIR/network.conf"
+		echo "[!] Created network.conf from template"
+	fi
+
+	# Prompt user to configure network.conf
+	read -n 1 -r -s -p $'[!] REQUIRED: Configure network settings in network.conf\n    - DNS_SERVER: Your DNS server IP (Pi-hole, router, or 8.8.8.8)\n    - HOST_IP: This machine\'s static IP address\n    - GATEWAY: Your router\'s IP address\n    - NETMASK: Network mask (default: 24 for 255.255.255.0)\n    - WAN_IFACE: Leave empty for auto-detection or specify interface name\nPress enter to open the file...\n'
+	vim "$REPO_DIR/network.conf"
+
+	# Source network.conf to load values
+	source "$REPO_DIR/network.conf"
+
+	# Validate required values
+	if [ -z "$DNS_SERVER" ] || [ -z "$HOST_IP" ] || [ -z "$GATEWAY" ]; then
+		echo "[!] ERROR: DNS_SERVER, HOST_IP, and GATEWAY are required in network.conf"
+		exit 1
+	fi
+
+	# Auto-detect WAN_IFACE if not specified
+	if [ -z "$WAN_IFACE" ]; then
+		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vbox|docker|br-)/ {print $2; exit}')
+		if [ -z "$WAN_IFACE" ]; then
+			echo "[!] ERROR: Could not auto-detect network interface. Please specify WAN_IFACE in network.conf"
+			exit 1
+		fi
+		echo "[+] Auto-detected network interface: $WAN_IFACE"
+	fi
+
+	# Set default NETMASK if not specified
+	NETMASK="${NETMASK:-24}"
+
+	# Function to substitute placeholders in a file
+	substitute_config() {
+		local src_file="$1"
+		local dst_file="$2"
+
+		sed -e "s|__DNS_SERVER__|${DNS_SERVER}|g" \
+		    -e "s|__HOST_IP__|${HOST_IP}|g" \
+		    -e "s|__GATEWAY__|${GATEWAY}|g" \
+		    -e "s|__NETMASK__|${NETMASK}|g" \
+		    -e "s|__WAN_IFACE__|${WAN_IFACE}|g" \
+		    "$src_file" > "$dst_file"
+	}
+
+	echo "[+] Applying network configuration..."
+	echo "    DNS_SERVER: $DNS_SERVER"
+	echo "    HOST_IP: $HOST_IP"
+	echo "    GATEWAY: $GATEWAY"
+	echo "    NETMASK: $NETMASK"
+	echo "    WAN_IFACE: $WAN_IFACE"
+
+	# Process network and firewall configuration files
+	substitute_config "$REPO_DIR/dotfiles/network-static.sh" "$HOME/network-static.sh"
+	substitute_config "$REPO_DIR/dotfiles/firewall.sh" "$HOME/firewall.sh"
+	cp "$REPO_DIR/dotfiles/network-static.service" "$HOME/"
+	cp "$REPO_DIR/dotfiles/firewall.service" "$HOME/"
+
+	# Process Docker configurations
+	mkdir -p "$HOME/dockers"
+	for docker_dir in "$REPO_DIR/dockers/"*/; do
+		docker_name=$(basename "$docker_dir")
+		mkdir -p "$HOME/dockers/$docker_name"
+
+		# Copy all files from docker directory
+		for file in "$docker_dir"*; do
+			filename=$(basename "$file")
+			if [[ "$filename" == "docker-compose.yml" ]] || [[ "$filename" == "docker-compose.yaml" ]]; then
+				# Substitute placeholders in docker-compose files
+				substitute_config "$file" "$HOME/dockers/$docker_name/$filename"
+			else
+				# Copy other files as-is
+				cp "$file" "$HOME/dockers/$docker_name/"
+			fi
+		done
 	done
 
-	# Install network and firewall configuration
-	cp "$REPO_DIR/dotfiles/network-static.sh" "$HOME/"
-	cp "$REPO_DIR/dotfiles/network-static.service" "$HOME/"
-	cp "$REPO_DIR/dotfiles/firewall.sh" "$HOME/"
-	cp "$REPO_DIR/dotfiles/firewall.service" "$HOME/"
+	echo "[+] Network configuration applied successfully"
+
+	# Start Docker containers
+	for i in $(/bin/ls "$HOME/dockers" 2>/dev/null); do
+		docker compose -f "$HOME/dockers/$i/docker-compose.yaml" up -d 2>/dev/null || \
+		docker compose -f "$HOME/dockers/$i/docker-compose.yml" up -d 2>/dev/null || true
+	done
 
 	# Setup Neovim plugins
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
@@ -395,27 +472,24 @@ importCFG() {
 		sudo update-grub
 	fi
 
-	# Configure networking
-	read -n 1 -r -s -p $'[!] Enable now the ipv4 forwarding in /etc/sysctl.conf\nPress enter to open the file...\n'
+	# Configure IPv4 forwarding
+	echo ""
+	read -n 1 -r -s -p $'[!] REQUIRED: Enable IPv4 forwarding in /etc/sysctl.conf\n    Add or uncomment: net.ipv4.ip_forward=1\nPress enter to open the file...\n'
 	sudo vim /etc/sysctl.conf
 
-	# Configure static IP
-	read -n 1 -r -s -p $'[!] REQUIRED: Configure static network parameters in network-static.sh\n    - Set STATIC_IP (the IP address for this machine)\n    - Set GATEWAY (your router IP address)\n    - Set DNS_SERVERS (DNS server IP)\n    - Verify NETMASK (default: 24 for 255.255.255.0)\n    - Verify INTERFACE is correct (run \"ip link\" if unsure)\nPress enter to open the file...\n'
-	vim "$HOME/network-static.sh"
+	# Install network and firewall configuration (already processed with network.conf values)
 	chmod 770 "$HOME/network-static.sh"
+	chmod 770 "$HOME/firewall.sh"
 	sudo chown root:root "$HOME/network-static.sh"
 	sudo chown root:root "$HOME/network-static.service"
-	sudo mv "$HOME/network-static.sh" /etc/
-	sudo mv "$HOME/network-static.service" /etc/systemd/system/
-
-	# Configure firewall
-	read -n 1 -r -s -p $'[!] REQUIRED: Configure firewall parameters in firewall.sh\n    - Set DNS server IP\n    - Set WAN_IFACE (run \"ip link\" to find your interface)\n    - Set PC (host IP address)\n    - Review VM IPs and ports\nPress enter to open the file...\n'
-	vim "$HOME/firewall.sh"
-	chmod 770 "$HOME/firewall.sh"
 	sudo chown root:root "$HOME/firewall.sh"
 	sudo chown root:root "$HOME/firewall.service"
+	sudo mv "$HOME/network-static.sh" /etc/
+	sudo mv "$HOME/network-static.service" /etc/systemd/system/
 	sudo mv "$HOME/firewall.sh" /etc/
 	sudo mv "$HOME/firewall.service" /etc/systemd/system/
+
+	echo "[+] Network and firewall configuration installed to /etc/"
 
 	# Configure ulogd2 for firewall logging
 	sudo mkdir -p /var/log/ulog

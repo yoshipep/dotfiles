@@ -1,0 +1,26 @@
+services:
+  claude-code:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Uses host UID environment variable, defaults to 1000 if not set
+        USER_ID: ${UID:-1000}
+    container_name: claude-code
+    # Use default bridge network (no user-defined network = no embedded DNS)
+    network_mode: bridge
+    # Configure DNS to use specific DNS server (traffic goes through FORWARD chain)
+    # Value auto-substituted from network.conf during installation
+    dns:
+      - __DNS_SERVER__
+    volumes:
+      # Mount the host repos directory to the container
+      - ~/repos:/home/claude/repos
+      # Optionally persist Claude Code configuration
+      - claude-config:/home/claude/.config
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+volumes:
+  claude-config:

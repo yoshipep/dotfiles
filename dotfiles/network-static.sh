@@ -1,32 +1,17 @@
 #!/bin/bash
 
 # ============================================================================
-# USER CONFIGURATION - MODIFY THESE VARIABLES ACCORDING TO YOUR SETUP
+# NETWORK CONFIGURATION - AUTO-GENERATED FROM network.conf
+# ============================================================================
+# These values are automatically substituted from network.conf during installation.
+# Do not edit directly - modify network.conf and re-run install_env.sh instead.
 # ============================================================================
 
-# Network Interface: Auto-detected physical interface (usually correct)
-# Run 'ip link' to verify your interface name if needed
-INTERFACE=''
-
-# Static IP Address: The IP you want assigned to this machine
-# Example: "192.168.1.100"
-STATIC_IP=''
-
-# Network Mask: Subnet mask in CIDR notation
-# Common values: 24 (255.255.255.0), 16 (255.255.0.0), 8 (255.0.0.0)
-NETMASK=''
-
-# Gateway: Your router's IP address
-# Example: "192.168.1.1"
-GATEWAY=''
-
-# DNS Servers: DNS server IP (your router, Pi-hole, or public DNS like 8.8.8.8)
-# Example: "192.168.1.1" or "8.8.8.8"
-DNS_SERVERS=''
-
-# ============================================================================
-# END USER CONFIGURATION
-# ============================================================================
+INTERFACE='__WAN_IFACE__'
+STATIC_IP='__HOST_IP__'
+NETMASK='__NETMASK__'
+GATEWAY='__GATEWAY__'
+DNS_SERVERS='__DNS_SERVER__'
 
 do_start() {
     echo "[+] Setting static IP ${STATIC_IP}/${NETMASK} on ${INTERFACE}"

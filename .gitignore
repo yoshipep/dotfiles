@@ -2,3 +2,6 @@
 dotfiles/.ssh/id_*
 dotfiles/.ssh/*.pem
 dotfiles/.ssh/*.key
+
+# User-specific network configuration
+network.conf
