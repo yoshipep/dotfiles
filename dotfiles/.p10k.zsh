@@ -61,7 +61,7 @@
     timewarrior             # timewarrior tracking status (https://timewarrior.net/)
     taskwarrior             # taskwarrior task count (https://taskwarrior.org/)
     per_directory_history   # Oh My Zsh per-directory-history local/global indicator
-    time                    # current time
+    # time                  # current time
     # ip                    # ip address and bandwidth usage for a specified network interface
     # public_ip             # public IP address
     # proxy                 # system-wide http/https/ftp proxy
@@ -1651,19 +1651,31 @@
   }
 
   function prompt_fw_status(){
-    fw_stat_prompt='%226F󰛵'
-    if [[ -f /etc/.fw_status ]]; then
-      fw_status=$(cat /etc/.fw_status)
-      if [[ "$fw_status" == "0" ]]; then
-        fw_stat_prompt="%001F󰀂"
-      elif [[ "$fw_status" == "1" ]]; then
-        fw_stat_prompt="%010F󰒄"
+    # Default to orange if files don't exist
+    host_icon='%208F󰛵'
+    docker_icon='%208F󰛵'
+
+    # Read host network status (0=off, 1=on)
+    if [[ -f /etc/.fw_host_status ]]; then
+      host_status=$(cat /etc/.fw_host_status)
+      if [[ "$host_status" == "1" ]]; then
+        host_icon='%001F󰒄'  # Red - host network ON
       else
-        fw_stat_prompt="%208F󰛵"
+        host_icon='%010F󰀂'  # Green - host network OFF
       fi
     fi
 
-    p10k segment -t "${fw_stat_prompt}"
+    # Read Docker network status (0=off, 1=on)
+    if [[ -f /etc/.fw_docker_status ]]; then
+      docker_status=$(cat /etc/.fw_docker_status)
+      if [[ "$docker_status" == "1" ]]; then
+        docker_icon='%001F󰒄'  # Red - Docker network ON
+      else
+        docker_icon='%010F󰀂'  # Green - Docker network OFF
+      fi
+    fi
+
+    p10k segment -t "${host_icon} ${docker_icon}"
   }
 
   function instant_prompt_fw_status() {

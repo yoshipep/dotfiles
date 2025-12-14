@@ -58,7 +58,7 @@ else
 fi
 
 do_flush_all_chains() {
-    # Deleting all the chains may break externally managed chains (i.e.: Docker chains) 
+    # Deleting all the chains may break externally managed chains (i.e.: Docker chains)
     # Some services must be restarted after this (Docker)
     TABLES=('nat' 'mangle' 'security' 'raw' 'filter')
     for table in "${TABLES[@]}"; do
@@ -66,7 +66,8 @@ do_flush_all_chains() {
     ${IPTABLES} -t "$table" -Z
     ${IPTABLES} -t "$table" -X
     done
-    echo '0' > /etc/.fw_status
+    echo '0' > /etc/.fw_host_status
+    echo '0' > /etc/.fw_docker_status
 }
 
 # Set default policy to ACCEPT (firewall disabled, all traffic allowed)
@@ -75,7 +76,8 @@ def_policy_accept() {
     ${IPTABLES} -P INPUT ACCEPT
     ${IPTABLES} -P OUTPUT ACCEPT
     ${IPTABLES} -P FORWARD ACCEPT
-    echo '0' > /etc/.fw_status
+    echo '1' > /etc/.fw_host_status
+    echo '1' > /etc/.fw_docker_status
 }
 
 # Set default policy to DROP (firewall enabled, deny by default)
@@ -84,7 +86,8 @@ def_policy_drop() {
     ${IPTABLES} -P INPUT DROP
     ${IPTABLES} -P OUTPUT DROP
     ${IPTABLES} -P FORWARD DROP
-    echo '1' > /etc/.fw_status
+    echo '0' > /etc/.fw_host_status
+    echo '0' > /etc/.fw_docker_status
 }
 
 # Enable network access for the host PC only (web browsing, DNS)
@@ -98,7 +101,7 @@ do_enable_host_net() {
 
     # Remove the TCP reject fallback rule to allow connections through
     remove_rule 'INPUT -p tcp -j REJECT --reject-with tcp-reset'
-    echo '0' > /etc/.fw_status
+    echo '1' > /etc/.fw_host_status
 }
 
 # Disable network access for the host PC only (lock down to minimal access)
@@ -110,7 +113,7 @@ do_disable_host_net() {
 
     # Re-add the TCP reject fallback rule for better connection refusal behavior
     append_rule 'INPUT -p tcp -j REJECT --reject-with tcp-reset'
-    echo '1' > /etc/.fw_status
+    echo '0' > /etc/.fw_host_status
 }
 
 # Enable network access for Docker containers only (web browsing, all ports)
@@ -130,7 +133,7 @@ do_enable_docker_net() {
     insert_rule "FORWARD -i ${WAN_IFACE} -o br-+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Note: MASQUERADE rule already handles NAT for Docker traffic
-    echo '2' > /etc/.fw_status
+    echo '1' > /etc/.fw_docker_status
 }
 
 # Disable network access for Docker containers only
@@ -145,7 +148,7 @@ do_disable_docker_net() {
     # INSERT at top to override Docker's default rules
     insert_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
     insert_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
-    echo '1' > /etc/.fw_status
+    echo '0' > /etc/.fw_docker_status
 }
 
 # Idempotent rule addition: only adds rule if it doesn't already exist
@@ -271,7 +274,8 @@ do_start() {
     append_rule 'FORWARD -j NFLOG --nflog-group 1 --nflog-prefix "FORWARD DROP: "'
     # Reject TCP connections with RST (cleaner than silent drop)
     append_rule "INPUT -p tcp -j REJECT --reject-with tcp-reset"
-    echo '1' > /etc/.fw_status
+    echo '0' > /etc/.fw_host_status
+    echo '0' > /etc/.fw_docker_status
 }
 
 check_root() {

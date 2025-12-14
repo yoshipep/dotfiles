@@ -6,6 +6,7 @@
 # enable/disable: Enable/disable entire firewall (change default policy)
 # flush: Flush all iptables chains
 # start: Load firewall rules
+# status: Show current network status
 
 if [[ "$1" == "on" ]]; then
 	ACTION="enable-net"
@@ -23,8 +24,34 @@ elif [[ "$1" == "flush" ]]; then
 	ACTION="$1"
 elif [[ "$1" == "start" ]]; then
 	ACTION="$1"
+elif [[ "$1" == "status" ]]; then
+	# Display current network status
+	host_status="unknown"
+	docker_status="unknown"
+
+	if [[ -f /etc/.fw_host_status ]]; then
+		host_val=$(cat /etc/.fw_host_status)
+		if [[ "$host_val" == "1" ]]; then
+			host_status="\033[0;31mON\033[0m"  # Red
+		else
+			host_status="\033[0;32mOFF\033[0m" # Green
+		fi
+	fi
+
+	if [[ -f /etc/.fw_docker_status ]]; then
+		docker_val=$(cat /etc/.fw_docker_status)
+		if [[ "$docker_val" == "1" ]]; then
+			docker_status="\033[0;31mON\033[0m"  # Red
+		else
+			docker_status="\033[0;32mOFF\033[0m" # Green
+		fi
+	fi
+
+	echo -e "Host network:   $host_status"
+	echo -e "Docker network: $docker_status"
+	exit 0
 else
-	echo "Usage: $0 [on|off|disable|enable|flush|start]" 1>&2;
+	echo "Usage: $0 [on|off|don|doff|disable|enable|flush|start|status]" 1>&2;
 	echo "" 1>&2;
 	echo "Commands:" 1>&2;
 	echo "	on		 - Enable host network access" 1>&2;
@@ -35,6 +62,7 @@ else
 	echo "	disable  - Disable firewall (default ACCEPT policy)" 1>&2;
 	echo "	flush	 - Flush all iptables rules" 1>&2;
 	echo "	start	 - Load/restart firewall rules" 1>&2;
+	echo "	status	 - Show current network status" 1>&2;
 	exit 1
 fi
 
