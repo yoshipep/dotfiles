@@ -1659,9 +1659,9 @@
     if [[ -f /etc/.fw_host_status ]]; then
       host_status=$(cat /etc/.fw_host_status)
       if [[ "$host_status" == "1" ]]; then
-        host_icon='%001F󰒄'  # Red - host network ON
+        host_icon='%001F󰀂'  # Red - host network ON
       else
-        host_icon='%010F󰀂'  # Green - host network OFF
+        host_icon='%010F󰒄'  # Green - host network OFF
       fi
     fi
 
@@ -1669,9 +1669,9 @@
     if [[ -f /etc/.fw_docker_status ]]; then
       docker_status=$(cat /etc/.fw_docker_status)
       if [[ "$docker_status" == "1" ]]; then
-        docker_icon='%001F󰒄'  # Red - Docker network ON
+        docker_icon='%001F󰀂'  # Red - Docker network ON
       else
-        docker_icon='%010F󰀂'  # Green - Docker network OFF
+        docker_icon='%010F󰒄'  # Green - Docker network OFF
       fi
     fi
 
