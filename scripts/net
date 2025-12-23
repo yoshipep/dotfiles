@@ -54,15 +54,15 @@ else
 	echo "Usage: $0 [on|off|don|doff|disable|enable|flush|start|status]" 1>&2;
 	echo "" 1>&2;
 	echo "Commands:" 1>&2;
-	echo "	on		 - Enable host network access" 1>&2;
-	echo "	off		 - Disable host network access" 1>&2;
-	echo "	don		 - Enable Docker network access" 1>&2;
-	echo "	doff	 - Disable Docker network access" 1>&2;
-	echo "	enable	 - Enable firewall (default DROP policy)" 1>&2;
-	echo "	disable  - Disable firewall (default ACCEPT policy)" 1>&2;
-	echo "	flush	 - Flush all iptables rules" 1>&2;
-	echo "	start	 - Load/restart firewall rules" 1>&2;
-	echo "	status	 - Show current network status" 1>&2;
+	echo "  on      - Enable host network access" 1>&2;
+	echo "  off     - Disable host network access" 1>&2;
+	echo "  don     - Enable Docker network access" 1>&2;
+	echo "  doff    - Disable Docker network access" 1>&2;
+	echo "  enable  - Enable firewall (default DROP policy)" 1>&2;
+	echo "  disable - Disable firewall (default ACCEPT policy)" 1>&2;
+	echo "  flush   - Flush all iptables rules" 1>&2;
+	echo "  start   - Load/restart firewall rules" 1>&2;
+	echo "  status  - Show current network status" 1>&2;
 	exit 1
 fi
 

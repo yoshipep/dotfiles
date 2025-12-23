@@ -274,6 +274,34 @@ installPlugins() {
 	git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 }
 
+selectTheme() {
+	echo ""
+	echo "[!] Select your Neovim color scheme:"
+	echo "    1) molokai-dark (default)"
+	echo "    2) catppuccin"
+	echo "    3) kanagawa"
+	echo "    4) onedark"
+	echo "    5) vscode"
+	echo "    6) dracula"
+	echo "    7) tokyodark"
+	echo ""
+	read -p "Enter your choice [1-7] (default: 1): " theme_choice
+
+	case "$theme_choice" in
+		2) selected_theme="catppuccin" ;;
+		3) selected_theme="kanagawa" ;;
+		4) selected_theme="onedark" ;;
+		5) selected_theme="vscode" ;;
+		6) selected_theme="dracula" ;;
+		7) selected_theme="tokyodark" ;;
+		*) selected_theme="molokai-dark" ;;
+	esac
+
+	echo "$selected_theme" > "$HOME/.vim_theme"
+	echo "[+] Theme set to: $selected_theme"
+	echo "    You can change it later by editing ~/.vim_theme"
+}
+
 installFont() {
 	echo "Installing: Agave font from nerd-fonts"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
@@ -517,6 +545,7 @@ echo "[+] Shell: zsh, oh my zsh, fzf, eza"
 echo "[+] Extras: ghidra, neovim, batcat, ripgrep, git-delta, lazydocker"
 echo "[+] Font: Agave"
 echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
+echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
 echo "[+] Build tools: Rust/Cargo"
 read -n 1 -r -s -p $'Press enter to continue...\n'
 
@@ -526,4 +555,5 @@ installShell
 installExtras
 installFont
 installPlugins
+selectTheme
 importCFG
