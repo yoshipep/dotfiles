@@ -132,6 +132,8 @@ checkPackages() {
 	# Install Rust and Cargo for building from source
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
+	# Install tree-sitter CLI for nvim-treesitter
+	cargo install  --locked tree-sitter-cli
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
