@@ -1,33 +1,32 @@
-FROM alpine:3.19
+FROM ubuntu:22.04
 
-# Install Node.js, npm, git, and bash
-RUN apk add --no-cache \
-    nodejs \
-    npm \
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    curl \
     git \
     bash \
-    shadow
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Accept build argument for user ID
 ARG USER_ID
 ARG USER_NAME=claude
 
 # Create user with specified UID
-RUN adduser -D -u ${USER_ID} -s /bin/bash ${USER_NAME}
+RUN useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME}
 
 # Switch to the user
 USER ${USER_NAME}
 WORKDIR /home/${USER_NAME}
 
-# Configure npm to use local directory for global packages
-RUN mkdir -p /home/${USER_NAME}/.npm-global && \
-  npm config set prefix '/home/${USER_NAME}/.npm-global'
+# Install Claude Code using native installer (handles auto-updates)
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Install Claude Code locally (user can update without sudo)
-RUN npm install -g @anthropic-ai/claude-code
-
-# Add npm global bin to PATH
-ENV PATH="/home/${USER_NAME}/.npm-global/bin:${PATH}"
+# Add Claude to PATH
+ENV PATH="/home/${USER_NAME}/.local/bin:${PATH}"
 
 # Create repos directory
 RUN mkdir -p /home/${USER_NAME}/repos
