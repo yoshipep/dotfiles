@@ -13,7 +13,6 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
-source ~/.oh-my-zsh/custom/themes/powerlevel10k
 TEXLIVE_BIN="$(command ls -d /usr/local/texlive/*/bin/x86_64-linux 2>/dev/null | sort -V | tail -n1)"
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:${TEXLIVE_BIN}:$PATH"
 export FZF_DEFAULT_OPTS='--layout=reverse-list'

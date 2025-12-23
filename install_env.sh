@@ -80,85 +80,109 @@ EOF
 }
 
 checkPackages() {
+	local MODE="${1:-full}"
 	cd "$HOME"
 	echo "[!] Installing required packages..."
+
+	# Common packages (both modes)
 	$INSTALL software-properties-common
 	sudo add-apt-repository -y ppa:git-core/ppa
-	sudo add-apt-repository -y ppa:phoerious/keepassxc
 	sudo apt update
 	sudo apt upgrade -y
 	$INSTALL build-essential
-	$INSTALL keepassxc
 	$INSTALL git
-	$INSTALL perl
-	$INSTALL gawk
 	$INSTALL curl
 	$INSTALL wget
-	wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
 	$INSTALL pip
-	$INSTALL meld
 	$INSTALL "python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
 	$INSTALL python3-autopep8
-	$INSTALL python3-virtualenvwrapper
 	$INSTALL python3-pynvim
 	$INSTALL python3-isort
 	$INSTALL isort
-	$INSTALL ipython3
-	$INSTALL terminator
 	$INSTALL htop
 	$INSTALL clangd
 	$INSTALL clang-format
 	$INSTALL xclip
-	$INSTALL libmpfr-dev
-	$INSTALL libgmp-dev
-	$INSTALL libmpc-dev
-	$INSTALL flex
-	$INSTALL bison
-	$INSTALL autoconf
-	$INSTALL automake
-	$INSTALL pkg-config
 	$INSTALL shellcheck
-	$INSTALL socat
-	# GDB build dependencies (for multi-arch support)
-	$INSTALL libreadline-dev
-	$INSTALL libncurses-dev
-	$INSTALL python3-dev
-	$INSTALL libexpat-dev
-	$INSTALL zlib1g-dev
-	$INSTALL libbabeltrace-dev
-	$INSTALL libipt-dev
-	local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
-	$INSTALL "$openjdk"
-	# Install Rust and Cargo for building from source
+	$INSTALL terminator
+
+	# Rust and Cargo (both modes - needed for tree-sitter)
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
-	# Install tree-sitter CLI for nvim-treesitter
-	cargo install  --locked tree-sitter-cli
+	cargo install --locked tree-sitter-cli
+
+	# Node.js (both modes - needed for CoC)
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
 	npm i -g neovim
-	npm i -g yarn
-	npm i -g bash-language-server
-	for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
-	sudo apt update
-	$INSTALL ca-certificates
-	sudo install -m 0755 -d /etc/apt/keyrings
-	sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-	sudo chmod a+r /etc/apt/keyrings/docker.asc
-	echo \
-	"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-	$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-	sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-	sudo apt update
-	$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-	sudo usermod -a -G docker "$USER"
-	$INSTALL ulogd2
-	sudo apt remove -y cups-client
-	sudo apt remove -y cups-common
-	sudo apt remove -y ufw
-	sudo apt autoremove -y
+
+	if [[ "$MODE" == "full" ]]; then
+		echo "[+] Installing FULL mode packages..."
+
+		# Full mode additional packages
+		sudo add-apt-repository -y ppa:phoerious/keepassxc
+		sudo apt update
+		$INSTALL keepassxc
+		$INSTALL perl
+		$INSTALL gawk
+		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
+		$INSTALL meld
+		$INSTALL python3-virtualenvwrapper
+		$INSTALL ipython3
+		$INSTALL socat
+
+		# GDB build dependencies
+		$INSTALL libmpfr-dev
+		$INSTALL libgmp-dev
+		$INSTALL libmpc-dev
+		$INSTALL flex
+		$INSTALL bison
+		$INSTALL autoconf
+		$INSTALL automake
+		$INSTALL pkg-config
+		$INSTALL libreadline-dev
+		$INSTALL libncurses-dev
+		$INSTALL python3-dev
+		$INSTALL libexpat-dev
+		$INSTALL zlib1g-dev
+		$INSTALL libbabeltrace-dev
+		$INSTALL libipt-dev
+
+		# Java for Ghidra
+		local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
+		$INSTALL "$openjdk"
+
+		# Additional npm packages
+		npm i -g yarn
+		npm i -g bash-language-server
+
+		# Docker setup
+		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
+		sudo apt update
+		$INSTALL ca-certificates
+		sudo install -m 0755 -d /etc/apt/keyrings
+		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+		sudo chmod a+r /etc/apt/keyrings/docker.asc
+		echo \
+		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+		sudo apt update
+		$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+		sudo usermod -a -G docker "$USER"
+
+		# Firewall logging
+		$INSTALL ulogd2
+
+		# Remove unwanted packages
+		sudo apt remove -y cups-client cups-common ufw 2>/dev/null
+		sudo apt autoremove -y
+	else
+		echo "[+] Installing MINIMAL mode packages..."
+		# Minimal mode skips: Docker, VirtualBox, Ghidra deps, GDB build deps, firewall tools
+	fi
 }
 
 installShell() {
@@ -321,66 +345,92 @@ installFont() {
 }
 
 importCFG() {
+	local MODE="${1:-full}"
 	echo "Importing configuration"
 	REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 	cd "$HOME"
 	mkdir -p projects
 	mkdir -p repos
-	mkdir -p patches
 
-	# Copy patches first (needed for GDB build)
-	cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
-
-	# Install TeX Live (provides texinfo needed for GDB build)
-	mkdir -p /tmp/tex
-	cp "$REPO_DIR/dotfiles/texlive.profile" /tmp/tex/
-	cd /tmp
-	wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
-	tar -xf install-tl-unx.tar.gz -C ./tex --strip-components=1
-	cd tex
-	sudo perl ./install-tl -profile texlive.profile
-
-	# Build GDB from source with patches and multi-arch support directly in /opt
-	sudo mkdir -p /opt/gdb
-	sudo chown "$USER:$USER" /opt/gdb
-	cd /opt/gdb
-	git clone https://sourceware.org/git/binutils-gdb.git .
-	git apply "$HOME/patches/gdb.patch"
-	./configure --enable-targets=all
-	make -j "$(nproc)"
-	sudo make install
-
-	# Install universal-ctags from apt
+	# Install universal-ctags from apt (both modes)
 	$INSTALL universal-ctags
 
-	# Install dotfiles
+	# Install dotfiles (both modes)
 	cd "$HOME"
 	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.p10k.zsh" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.gitconfig" "$HOME/"
-	cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
-	cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.clang-format" "$HOME/"
 	cp -r "$REPO_DIR/dotfiles/.ssh" "$HOME/" 2>/dev/null || echo "SSH config skipped"
 
-	# Install config directories
+	# Install config directories (both modes)
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/terminator" "$HOME/.config/"
 
-	# Create snippet symlinks
+	# Create snippet symlinks (both modes)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/S.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 
-	# Install scripts
-	mkdir -p "$HOME/scripts"
-	cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
-	chmod +x "$HOME/scripts/"*
+	if [[ "$MODE" == "full" ]]; then
+		echo "[+] Importing FULL configuration..."
+
+		# Full mode: Heavy build processes
+		mkdir -p patches
+		cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
+
+		# Install TeX Live (provides texinfo needed for GDB build)
+		mkdir -p /tmp/tex
+		cp "$REPO_DIR/dotfiles/texlive.profile" /tmp/tex/
+		cd /tmp
+		wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+		tar -xf install-tl-unx.tar.gz -C ./tex --strip-components=1
+		cd tex
+		sudo perl ./install-tl -profile texlive.profile
+
+		# Build GDB from source with patches and multi-arch support
+		sudo mkdir -p /opt/gdb
+		sudo chown "$USER:$USER" /opt/gdb
+		cd /opt/gdb
+		git clone https://sourceware.org/git/binutils-gdb.git .
+		git apply "$HOME/patches/gdb.patch"
+		./configure --enable-targets=all
+		make -j "$(nproc)"
+		sudo make install
+
+		# Full mode dotfiles
+		cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
+		cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
+
+		# Install scripts (firewall, network)
+		mkdir -p "$HOME/scripts"
+		cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
+		chmod +x "$HOME/scripts/"*
+	else
+		echo "[+] Importing MINIMAL configuration..."
+		# Minimal mode skips: TeX Live, GDB build, GEF, network scripts
+	fi
+
+	# Setup Neovim plugins (both modes)
+	/opt/neovim/bin/nvim --headless +PlugInstall +qa
+	/opt/neovim/bin/nvim --headless +CocUpdate +qa
+	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
+	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+
+	if [[ "$MODE" != "full" ]]; then
+		echo "[+] MINIMAL installation complete!"
+		echo ""
+		echo "Next steps:"
+		echo "  1. Restart your shell or run: source ~/.zshrc"
+		echo "  2. Open Neovim and themes will be loaded automatically"
+		echo "  3. Change theme anytime by editing ~/.vim_theme"
+		return
+	fi
 
 	# ============================================================================
-	# NETWORK CONFIGURATION
+	# FULL MODE ONLY: NETWORK CONFIGURATION
 	# ============================================================================
 	echo ""
 	echo "[+] Configuring network settings..."
@@ -470,13 +520,7 @@ importCFG() {
 		docker compose -f "$HOME/dockers/$i/docker-compose.yml" up -d 2>/dev/null || true
 	done
 
-	# Setup Neovim plugins
-	/opt/neovim/bin/nvim --headless +PlugInstall +qa
-	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
-	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
-
-	# Install Perl modules
+	# Install Perl modules (for GDB/GEF)
 	cd "$HOME"
 	sudo cpan Unicode::GCString
 	sudo cpan App::cpanminus
@@ -541,21 +585,68 @@ importCFG() {
 }
 
 echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
-echo "[!] The following tools are going to be installed:"
-echo "[+] Terminal: terminator"
-echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-echo "[+] Extras: ghidra, neovim, batcat, ripgrep, git-delta, lazydocker"
-echo "[+] Font: Agave"
-echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
-echo "[+] Build tools: Rust/Cargo"
+echo ""
+echo "[?] Select installation mode:"
+echo "    1) FULL - Complete development environment (recommended for personal systems)"
+echo "       Includes: Full shell setup, Neovim, GDB, Ghidra, Docker, firewall, VMs, all tools"
+echo ""
+echo "    2) MINIMAL - Essential dotfiles only (for corporate/restricted environments)"
+echo "       Includes: Shell (zsh + oh-my-zsh), Neovim + plugins, Font, basic tools"
+echo "       Skips: GDB build, Docker, firewall, TeX Live, Ghidra, system services"
+echo ""
+read -p "Enter your choice [1-2] (default: 1): " install_mode
+
+case "$install_mode" in
+	2)
+		INSTALL_MODE="minimal"
+		echo "[+] MINIMAL installation selected"
+		;;
+	*)
+		INSTALL_MODE="full"
+		echo "[+] FULL installation selected"
+		;;
+esac
+
+echo ""
+if [[ "$INSTALL_MODE" == "full" ]]; then
+	echo "[!] The following tools will be installed:"
+	echo "[+] Terminal: terminator"
+	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
+	echo "[+] Extras: ghidra, neovim, batcat, ripgrep, git-delta, lazydocker"
+	echo "[+] Font: Agave"
+	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
+	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
+	echo "[+] Build tools: Rust/Cargo, TeX Live, GDB from source"
+	echo "[+] System: Firewall, network services, Docker"
+else
+	echo "[!] The following tools will be installed:"
+	echo "[+] Terminal: terminator"
+	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
+	echo "[+] Editor: neovim, batcat, ripgrep, git-delta"
+	echo "[+] Font: Agave"
+	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
+	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
+	echo "[+] Build tools: Rust/Cargo (minimal), Node.js (for CoC)"
+fi
 read -n 1 -r -s -p $'Press enter to continue...\n'
 
-removeSnap
-checkPackages
+# Optional: Ask about snap removal for both modes
+if [[ "$INSTALL_MODE" == "full" ]]; then
+	removeSnap
+else
+	echo ""
+	read -r -p "[?] Remove snap from system? (y/N): " snap_choice
+	if [[ "$snap_choice" =~ ^[Yy]$ ]]; then
+		removeSnap
+	fi
+fi
+
+checkPackages "$INSTALL_MODE"
 installShell
-installExtras
+if [[ "$INSTALL_MODE" == "full" ]]; then
+	installExtras
+fi
 installFont
 installPlugins
 selectTheme
-importCFG
+importCFG "$INSTALL_MODE"
