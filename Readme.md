@@ -1,28 +1,29 @@
 # Development Environment Setup Repository
 
-This repository contains a bash script that downloads and configures all necessary packages to create a development
-environment on **Ubuntu**. Dotfiles and configurations are organized within the repository.
+Automated development environment setup for **Ubuntu** systems with two installation modes.
 
-## Structure
+## Installation Modes
 
-```
-.
-├── install_env.sh          # Main installation script
-├── network.conf.example    # Network configuration template
-├── dotfiles/               # User configurations
-│   ├── .zshrc, .p10k.zsh  # Shell configuration
-│   ├── .clang-format      # C/C++ code formatting
-│   ├── .gef.rc            # GDB Enhanced Features
-│   ├── firewall.sh        # Firewall script (auto-configured)
-│   ├── network-static.sh  # Static IP script (auto-configured)
-│   └── .config/           # Application configurations
-│       ├── nvim/          # Neovim
-│       ├── terminator/    # Terminator
-│       └── coc/           # Conquer of Completion
-├── scripts/               # Utility scripts
-├── patches/               # Patches (e.g., gdb.patch)
-└── dockers/               # Docker Compose configurations
-```
+### FULL Mode (Default)
+
+Complete development environment for personal systems:
+
+- Shell: zsh, oh-my-zsh, eza, powerlevel10k
+- Editor: Neovim with all plugins and 7 themes
+- Development: GDB (custom build), Ghidra, Docker, VirtualBox
+- Network: Custom firewall with VM isolation, static IP
+- Tools: batcat, ripgrep, git-delta, lazydocker, tree-sitter, eza, fzf
+
+### MINIMAL Mode
+
+Essential dotfiles for corporate/restricted environments:
+
+- Shell: zsh, oh-my-zsh, powerlevel10k
+- Editor: Neovim with all plugins and 7 themes
+- Terminal: terminator
+- Tools: batcat, ripgrep, git-delta, lazydocker, tree-sitter, eza, fzf
+
+**Skips**: GDB build, Docker, Ghidra, firewall, TeX Live, system services
 
 ## Usage
 
@@ -30,59 +31,94 @@ environment on **Ubuntu**. Dotfiles and configurations are organized within the 
 bash install_env.sh
 ```
 
-The script will automatically install:
-- Terminal: terminator
-- Shell: zsh, oh-my-zsh, fzf, eza
-- Extras: ghidra, neovim, batcat, ripgrep
-- Font: Agave Nerd Font
-- Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc
+The installer will prompt for:
 
-### Configuration Required During Installation
+1. **Installation mode** (FULL or MINIMAL)
+2. **Neovim theme** (molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark)
+3. **Network configuration** (FULL mode only - edit `network.conf`)
 
-During script execution, you will be prompted to configure:
+## Configuration During Installation
 
-1. **Network settings** (`network.conf`): Single configuration file for all network settings
-   - `DNS_SERVER`: Your DNS server IP (Pi-hole, router, or 8.8.8.8)
-   - `HOST_IP`: This machine's static IP address
-   - `GATEWAY`: Your router's IP address
-   - `NETMASK`: Network mask (default: 24)
-   - `WAN_IFACE`: Leave empty for auto-detection
+### Neovim Theme Selection (Both Modes)
 
-   The installer automatically applies these values to firewall.sh, network-static.sh, and Docker containers.
+Choose from 7 colorschemes during installation. Theme is saved to `~/.vim_theme` and can be changed later.
 
-2. **IPv4 forwarding**: Enable in `/etc/sysctl.conf`
+### Network Configuration (FULL Mode Only)
 
-3. **IPv6**: Option to disable (dual-boot)
+Edit `network.conf` with your settings:
 
-### SSH Configuration for VMs
+- `DNS_SERVER`: Your DNS server IP (Pi-hole, router, or 8.8.8.8)
+- `HOST_IP`: This machine's static IP address
+- `GATEWAY`: Your router's IP address
+- `NETMASK`: Network mask (default: 24)
+- `WAN_IFACE`: Leave empty for auto-detection
 
-SSH keys for connecting to VMs must be generated manually:
+The installer automatically substitutes these values into firewall.sh, network-static.sh, and Docker configs.
+
+**Manual configuration required:**
+
+- **IPv4 forwarding**: Enable in `/etc/sysctl.conf` (prompted during installation)
+- **IPv6**: Option to disable
+
+## Key Features
+
+### Firewall Control (FULL Mode)
+
+- `net on/off`: Host internet access
+- `net don/doff`: Docker container internet access
+- `net status`: Show current status
+
+### Docker Integration (FULL Mode)
+
+Containers requiring internet must use:
+
+```yaml
+network_mode: bridge
+dns:
+    - __DNS_SERVER__
+```
+
+This routes traffic through the firewall's FORWARD chain, enabling `net don/doff` control.
+
+### SSH Configuration for VMs (FULL Mode)
+
+SSH keys must be generated manually:
 
 ```bash
-# Generate key for the VM
 ssh-keygen -t ed25519 -f ~/.ssh/vbox_vm_name -C "vm-name"
-
-# Copy the public key to the VM
 ssh-copy-id -i ~/.ssh/vbox_vm_name.pub user@vm_ip
 ```
 
-⚠️ **Security note**: Private keys are NOT included in this repository. The `.ssh/config` file contains references to keys that must be generated locally.
+⚠️ **Security note**: Private keys are NOT included in this repository.
 
-### Firewall and Network Control
+## Structure
 
-The environment includes a custom iptables firewall with granular network control:
-
-**Control Commands** (via `scripts/net`):
-- `net on/off`: Enable/disable host internet access
-- `net don/doff`: Enable/disable Docker container internet access
-- `net enable/disable`: Enable/disable firewall
-- `net start`: Reload firewall rules
-
-**Docker Network Integration**: Containers requiring internet access must use:
-```yaml
-network_mode: bridge    # Use default docker0 bridge
-dns:
-  - __DNS_SERVER__      # Explicit DNS (auto-substituted from network.conf)
+```
+.
+├── install_env.sh          # Main installation script with mode selection
+├── network.conf.example    # Network configuration template
+├── dotfiles/               # User configurations
+│   ├── .zshrc, .p10k.zsh  # Shell configuration
+│   ├── .clang-format      # C/C++ code formatting
+│   ├── .gef.rc            # GDB Enhanced Features
+│   ├── .gdbinit           # GDB configuration
+│   ├── firewall.sh        # Firewall script (auto-configured)
+│   ├── network-static.sh  # Static IP script (auto-configured)
+│   └── .config/           # Application configurations
+│       ├── nvim/          # Neovim with plugins and themes
+│       ├── terminator/    # Terminator terminal
+│       └── coc/           # Conquer of Completion
+├── scripts/               # Utility scripts (net, opensocat, seek, sz)
+├── patches/               # Patches (gdb.patch, gef.patch)
+└── dockers/               # Docker Compose configurations
 ```
 
-This configuration routes all container traffic through the firewall's FORWARD chain, allowing `net don/doff` to control Docker internet access.
+## Notes
+
+- **Configuration**: `network.conf` is gitignored to prevent committing network details
+- **SSH keys**: User-specific, NOT included in repository
+- **System services** (FULL mode): Firewall and static network services auto-enabled
+- **Docker control** (FULL mode): Use `net don/doff` for container internet access
+- **GDB** (FULL mode): Built from source with multi-arch support and custom patch
+- **Snap removal**: Optional during installation with apt pinning
+- **Font**: Terminator requires manual configuration to use Agave Nerd Font

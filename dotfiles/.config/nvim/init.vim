@@ -213,8 +213,14 @@ autocmd FileType cpp setlocal shiftwidth=8 tabstop=8 softtabstop=8 expandtab  co
 autocmd BufNewFile *.h call AddHeaderGuards()
 
 " LaTeX settings
-autocmd FileType tex setlocal spell spelllang=es_es
+autocmd FileType tex setlocal spell
 autocmd FileType tex set fo-=t
+
+" Markdown settings
+autocmd FileType markdown setlocal spell
+
+" Text files settings
+autocmd FileType text setlocal spell
 
 " CSS settings
 autocmd FileType css setl iskeyword+=-
