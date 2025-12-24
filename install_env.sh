@@ -220,26 +220,12 @@ installShell() {
 	fi
 }
 
-installExtras() {
-	echo "[!] Installing: ghidra, neovim, batcat, ripgrep, git-delta, lazydocker"
+installCommonTools() {
+	echo "[!] Installing: neovim, batcat, ripgrep"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	cd /tmp
 
-	# Install Ghidra to /opt
-	sudo mkdir -p /opt/ghidra
-	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/NationalSecurityAgency/ghidra/releases/download/[^"]+ghidra_[^"]+_PUBLIC_[^"]+\.zip"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o ghidra.zip "$LOCATION"
-	unzip -q ghidra.zip
-	folder=$(find . -maxdepth 1 -type d -name "ghidra_*" | head -n1)
-	sudo mv "$folder"/* /opt/ghidra/
-	rm -rf "$folder"
-	rm ghidra.zip
-	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
-
 	# Install Neovim to /opt
-	cd /tmp
 	sudo mkdir -p /opt/neovim
 	LOCATION=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/neovim/neovim/releases/download/[^"]+/nvim-linux-x86_64\.tar\.gz"' |
@@ -268,6 +254,25 @@ installExtras() {
 	curl -L -o ripgrep.deb "$LOCATION"
 	sudo dpkg -i ripgrep.deb
 	rm ripgrep.deb
+}
+
+installExtras() {
+	echo "[!] Installing: ghidra, git-delta, lazydocker"
+	read -n 1 -r -s -p $'Press enter to continue...\n'
+	cd /tmp
+
+	# Install Ghidra to /opt
+	sudo mkdir -p /opt/ghidra
+	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
+		grep -Eo '"browser_download_url":\s*"https://github.com/NationalSecurityAgency/ghidra/releases/download/[^"]+ghidra_[^"]+_PUBLIC_[^"]+\.zip"' |
+		awk -F'"' '{ print $4 }')
+	curl -L -o ghidra.zip "$LOCATION"
+	unzip -q ghidra.zip
+	folder=$(find . -maxdepth 1 -type d -name "ghidra_*" | head -n1)
+	sudo mv "$folder"/* /opt/ghidra/
+	rm -rf "$folder"
+	rm ghidra.zip
+	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
 
 	# Install git-delta binary
 	cd /tmp
@@ -467,19 +472,6 @@ importCFG() {
 	# Set default NETMASK if not specified
 	NETMASK="${NETMASK:-24}"
 
-	# Function to substitute placeholders in a file
-	substitute_config() {
-		local src_file="$1"
-		local dst_file="$2"
-
-		sed -e "s|__DNS_SERVER__|${DNS_SERVER}|g" \
-		    -e "s|__HOST_IP__|${HOST_IP}|g" \
-		    -e "s|__GATEWAY__|${GATEWAY}|g" \
-		    -e "s|__NETMASK__|${NETMASK}|g" \
-		    -e "s|__WAN_IFACE__|${WAN_IFACE}|g" \
-		    "$src_file" > "$dst_file"
-	}
-
 	echo "[+] Applying network configuration..."
 	echo "    DNS_SERVER: $DNS_SERVER"
 	echo "    HOST_IP: $HOST_IP"
@@ -487,34 +479,41 @@ importCFG() {
 	echo "    NETMASK: $NETMASK"
 	echo "    WAN_IFACE: $WAN_IFACE"
 
-	# Process network and firewall configuration files
-	substitute_config "$REPO_DIR/dotfiles/network-static.sh" "$HOME/network-static.sh"
-	substitute_config "$REPO_DIR/dotfiles/firewall.sh" "$HOME/firewall.sh"
-	cp "$REPO_DIR/dotfiles/network-static.service" "$HOME/"
-	cp "$REPO_DIR/dotfiles/firewall.service" "$HOME/"
+	# Copy network configuration to /etc
+	sudo cp "$REPO_DIR/network.conf" /etc/network.conf
+	sudo chmod 600 /etc/network.conf
+	sudo chown root:root /etc/network.conf
 
-	# Process Docker configurations
+	# Copy network and firewall scripts to /etc (they source config at runtime)
+	sudo cp "$REPO_DIR/dotfiles/network-static.sh" /etc/network-static.sh
+	sudo cp "$REPO_DIR/dotfiles/firewall.sh" /etc/firewall.sh
+	sudo chmod 700 /etc/network-static.sh
+	sudo chmod 700 /etc/firewall.sh
+	sudo chown root:root /etc/network-static.sh
+	sudo chown root:root /etc/firewall.sh
+
+	# Install systemd service files to /etc/systemd/system
+	sudo cp "$REPO_DIR/dotfiles/network-static.service" /etc/systemd/system/
+	sudo cp "$REPO_DIR/dotfiles/firewall.service" /etc/systemd/system/
+	sudo chmod 644 /etc/systemd/system/network-static.service
+	sudo chmod 644 /etc/systemd/system/firewall.service
+	sudo chown root:root /etc/systemd/system/network-static.service
+	sudo chown root:root /etc/systemd/system/firewall.service
+
+	# Process Docker configurations (copy as-is, configs loaded via env vars at runtime)
 	mkdir -p "$HOME/dockers"
 	for docker_dir in "$REPO_DIR/dockers/"*/; do
 		docker_name=$(basename "$docker_dir")
 		mkdir -p "$HOME/dockers/$docker_name"
-
-		# Copy all files from docker directory
-		for file in "$docker_dir"*; do
-			filename=$(basename "$file")
-			if [[ "$filename" == "docker-compose.yml" ]] || [[ "$filename" == "docker-compose.yaml" ]]; then
-				# Substitute placeholders in docker-compose files
-				substitute_config "$file" "$HOME/dockers/$docker_name/$filename"
-			else
-				# Copy other files as-is
-				cp "$file" "$HOME/dockers/$docker_name/"
-			fi
-		done
+		# Copy all files as-is (no substitution)
+		cp -r "$docker_dir"* "$HOME/dockers/$docker_name/"
 	done
 
 	echo "[+] Network configuration applied successfully"
 
-	# Start Docker containers
+	# Start Docker containers with network config environment variables
+	source "$REPO_DIR/network.conf"
+	export DNS_SERVER HOST_IP GATEWAY NETMASK WAN_IFACE
 	for i in $(/bin/ls "$HOME/dockers" 2>/dev/null); do
 		docker compose -f "$HOME/dockers/$i/docker-compose.yaml" up -d 2>/dev/null || \
 		docker compose -f "$HOME/dockers/$i/docker-compose.yml" up -d 2>/dev/null || true
@@ -551,18 +550,7 @@ importCFG() {
 	read -n 1 -r -s -p $'[!] REQUIRED: Enable IPv4 forwarding in /etc/sysctl.conf\n    Add or uncomment: net.ipv4.ip_forward=1\nPress enter to open the file...\n'
 	sudo vim /etc/sysctl.conf
 
-	# Install network and firewall configuration (already processed with network.conf values)
-	chmod 770 "$HOME/network-static.sh"
-	chmod 770 "$HOME/firewall.sh"
-	sudo chown root:root "$HOME/network-static.sh"
-	sudo chown root:root "$HOME/network-static.service"
-	sudo chown root:root "$HOME/firewall.sh"
-	sudo chown root:root "$HOME/firewall.service"
-	sudo mv "$HOME/network-static.sh" /etc/
-	sudo mv "$HOME/network-static.service" /etc/systemd/system/
-	sudo mv "$HOME/firewall.sh" /etc/
-	sudo mv "$HOME/firewall.service" /etc/systemd/system/
-
+	# Network and firewall scripts already installed to /etc/
 	echo "[+] Network and firewall configuration installed to /etc/"
 
 	# Configure ulogd2 for firewall logging
@@ -591,7 +579,7 @@ echo "    1) FULL - Complete development environment (recommended for personal s
 echo "       Includes: Full shell setup, Neovim, GDB, Ghidra, Docker, firewall, VMs, all tools"
 echo ""
 echo "    2) MINIMAL - Essential dotfiles only (for corporate/restricted environments)"
-echo "       Includes: Shell (zsh + oh-my-zsh), Neovim + plugins, Font, basic tools"
+echo "       Includes: Full shell setup, Neovim, Font, basic tools"
 echo "       Skips: GDB build, Docker, firewall, TeX Live, Ghidra, system services"
 echo ""
 read -p "Enter your choice [1-2] (default: 1): " install_mode
@@ -612,7 +600,9 @@ if [[ "$INSTALL_MODE" == "full" ]]; then
 	echo "[!] The following tools will be installed:"
 	echo "[+] Terminal: terminator"
 	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Extras: ghidra, neovim, batcat, ripgrep, git-delta, lazydocker"
+	echo "[+] Editor: neovim"
+	echo "[+] Tools: batcat, ripgrep, git-delta, lazydocker"
+	echo "[+] Extras: ghidra"
 	echo "[+] Font: Agave"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
 	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
@@ -622,7 +612,8 @@ else
 	echo "[!] The following tools will be installed:"
 	echo "[+] Terminal: terminator"
 	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Editor: neovim, batcat, ripgrep, git-delta"
+	echo "[+] Editor: neovim"
+	echo "[+] Tools: batcat, ripgrep"
 	echo "[+] Font: Agave"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
 	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
@@ -643,6 +634,7 @@ fi
 
 checkPackages "$INSTALL_MODE"
 installShell
+installCommonTools
 if [[ "$INSTALL_MODE" == "full" ]]; then
 	installExtras
 fi

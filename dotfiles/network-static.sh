@@ -1,17 +1,25 @@
 #!/bin/bash
 
 # ============================================================================
-# NETWORK CONFIGURATION - AUTO-GENERATED FROM network.conf
+# NETWORK CONFIGURATION
 # ============================================================================
-# These values are automatically substituted from network.conf during installation.
-# Do not edit directly - modify network.conf and re-run install_env.sh instead.
+# Load network configuration from system-wide location
+# To change network settings, run: net config
 # ============================================================================
 
-INTERFACE='__WAN_IFACE__'
-STATIC_IP='__HOST_IP__'
-NETMASK='__NETMASK__'
-GATEWAY='__GATEWAY__'
-DNS_SERVERS='__DNS_SERVER__'
+CONFIG_FILE="/etc/network.conf"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "[!] ERROR: Network configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+source "$CONFIG_FILE"
+
+INTERFACE="$WAN_IFACE"
+STATIC_IP="$HOST_IP"
+NETMASK="${NETMASK:-24}"
+GATEWAY="$GATEWAY"
+DNS_SERVERS="$DNS_SERVER"
 
 do_start() {
     echo "[+] Setting static IP ${STATIC_IP}/${NETMASK} on ${INTERFACE}"

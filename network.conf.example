@@ -2,13 +2,18 @@
 # NETWORK CONFIGURATION
 # ============================================================================
 # This file contains your network-specific configuration that will be
-# automatically substituted into firewall.sh, network-static.sh, and Docker
-# Compose files during installation.
+# copied to /etc/network.conf and loaded at runtime by firewall.sh,
+# network-static.sh, and Docker Compose.
 #
-# INSTRUCTIONS:
+# INSTRUCTIONS (First time installation):
 #   1. Copy this file: cp network.conf.example network.conf
 #   2. Edit network.conf with YOUR network settings below
 #   3. Run install_env.sh to apply configuration
+#
+# INSTRUCTIONS (After installation - changing networks):
+#   1. Run: net config
+#   2. Edit /etc/network.conf with new network settings
+#   3. Confirm to apply changes (Docker auto-reloads, firewall prompts)
 #
 # IMPORTANT: Do NOT commit network.conf (it's in .gitignore)
 # ============================================================================

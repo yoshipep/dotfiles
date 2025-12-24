@@ -20,7 +20,8 @@ export MAKEFLAGS="-j$(nproc)"
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | batcat -p -lman'"
 export WORKON_HOME="$HOME/.virtualenvs"
 export CMAKE_TOOLCHAIN_FILE="$HOME/default_toolchain.cmake"
-source '/usr/share/virtualenvwrapper/virtualenvwrapper.sh'
+# Load virtualenvwrapper if installed (FULL mode only)
+[[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
 alias cat='/usr/bin/batcat'
 alias ls='eza -g --long --header --icons --git'
 alias vim="/opt/neovim/bin/nvim"

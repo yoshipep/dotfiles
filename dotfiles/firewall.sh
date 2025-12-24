@@ -5,15 +5,23 @@
 IPTABLES=/usr/sbin/iptables
 
 # ============================================================================
-# NETWORK CONFIGURATION - AUTO-GENERATED FROM network.conf
+# NETWORK CONFIGURATION
 # ============================================================================
-# These values are automatically substituted from network.conf during installation.
-# Do not edit directly - modify network.conf and re-run install_env.sh instead.
+# Load network configuration from system-wide location
+# To change network settings, run: net config
 # ============================================================================
 
-DNS='__DNS_SERVER__'
-WAN_IFACE='__WAN_IFACE__'
-PC='__HOST_IP__'
+CONFIG_FILE="/etc/network.conf"
+if [[ ! -f "$CONFIG_FILE" ]]; then
+    echo "[!] ERROR: Network configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+source "$CONFIG_FILE"
+
+DNS="$DNS_SERVER"
+WAN_IFACE="$WAN_IFACE"
+PC="$HOST_IP"
 
 # -- PORTS --
 SSH_PORT='22'

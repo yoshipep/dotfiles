@@ -10,9 +10,9 @@ services:
     # Use default bridge network (no user-defined network = no embedded DNS)
     network_mode: bridge
     # Configure DNS to use specific DNS server (traffic goes through FORWARD chain)
-    # Value auto-substituted from network.conf during installation
+    # Value loaded from network.conf at runtime via environment variable
     dns:
-      - __DNS_SERVER__
+      - ${DNS_SERVER}
     volumes:
       # Mount the host repos directory to the container
       - ~/repos:/home/claude/repos
