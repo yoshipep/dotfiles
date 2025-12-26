@@ -38,6 +38,7 @@ Plug 'navarasu/onedark.nvim'
 Plug 'Mofiqul/vscode.nvim'
 Plug 'Dracula/vim', { 'as': 'dracula' }
 Plug 'tiagovla/tokyodark.nvim'
+Plug 'ellisonleao/gruvbox.nvim'
 
 " LSP & Completion
 Plug 'neoclide/coc.nvim', {'branch': 'release'}

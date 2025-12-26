@@ -38,7 +38,7 @@ bash install_env.sh
 The installer will prompt for:
 
 1. **Installation mode** (FULL or MINIMAL)
-2. **Neovim theme** (molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark)
+2. **Neovim theme** (molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox)
 3. **Network configuration** (FULL mode only - DNS, IP, gateway)
 
 ## Configuration During Installation

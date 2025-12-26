@@ -315,8 +315,9 @@ selectTheme() {
 	echo "    5) vscode"
 	echo "    6) dracula"
 	echo "    7) tokyodark"
+	echo "    8) gruvbox"
 	echo ""
-	read -p "Enter your choice [1-7] (default: 1): " theme_choice
+	read -p "Enter your choice [1-8] (default: 1): " theme_choice
 
 	case "$theme_choice" in
 		2) selected_theme="catppuccin" ;;
@@ -325,6 +326,7 @@ selectTheme() {
 		5) selected_theme="vscode" ;;
 		6) selected_theme="dracula" ;;
 		7) selected_theme="tokyodark" ;;
+		8) selected_theme="gruvbox" ;;
 		*) selected_theme="molokai-dark" ;;
 	esac
 
@@ -421,6 +423,7 @@ importCFG() {
 	# Setup Neovim plugins (both modes)
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
 

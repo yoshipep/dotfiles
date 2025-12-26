@@ -1,10 +1,6 @@
 {
+  // General UI settings
   "inlayHint.enable": false,
-  "snippets.ultisnips.directories": [
-    "custom-snippets"
-  ],
-  "clangd.path": "/usr/bin/clangd",
-  "python.pythonPath": "/usr/bin/python3",
   "suggest.floatConfig": {
     "border": true
   },
@@ -17,36 +13,39 @@
   "hover.floatConfig": {
     "border": true
   },
-  "clangd.arguments": [
-    "--header-insertion=never", "--compile-commands-dir=build"
-  ],
+
+  // Snippets
+  "snippets.ultisnips.directories": ["custom-snippets"],
   "snippets.ultisnips.pythonPrompt": false,
-  "coc.source.vimtex.filetypes": [
-    "tex", "latex"
+
+  // C/C++ (clangd)
+  "clangd.path": "/usr/bin/clangd",
+  "clangd.arguments": [
+    "--header-insertion=never",
+    "--compile-commands-dir=build",
+    "--background-index",
+    "--clang-tidy",
+    "--completion-style=detailed",
+    "--log=error"
   ],
-  "coc.source.vimtex.enable": true,
-  "ltex.language": "es",
-  "ltex.enabled": ["latex", "bibtex"],
+  "clangd.fallbackFlags": ["-std=c11", "-Wall"],
+
+  // Python
+  "python.pythonPath": "/usr/bin/python3",
+
+  // Bash
   "languageserver": {
     "bash": {
       "command": "bash-language-server",
-      "args": [
-        "start"
-      ],
-      "filetypes": [
-        "sh"
-      ],
-      "ignoredRootPaths": [
-        "~"
-      ]
+      "args": ["start"],
+      "filetypes": ["sh"],
+      "ignoredRootPaths": ["~"]
     }
   },
-  "typescript.implementationsCodeLens.enabled": true,
-  "typescript.referencesCodeLens.enabled": true,
-  "typescript.preferences.quoteStyle": "single",
-  "typescript.format.semicolons": "insert",
-  "javascript.implementationsCodeLens.enabled": true,
-  "javascript.referencesCodeLens.enabled": true,
-  "javascript.preferences.quoteStyle": "single",
-  "javascript.format.semicolons": "insert"
+
+  // LaTeX
+  "coc.source.vimtex.filetypes": ["tex", "latex"],
+  "coc.source.vimtex.enable": true,
+  "ltex.language": "es",
+  "ltex.enabled": ["latex", "bibtex"]
 }
