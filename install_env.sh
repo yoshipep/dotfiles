@@ -371,6 +371,9 @@ importCFG() {
 	cp "$REPO_DIR/dotfiles/.clang-format" "$HOME/"
 	cp -r "$REPO_DIR/dotfiles/.ssh" "$HOME/" 2>/dev/null || echo "SSH config skipped"
 
+	# Install prompts directory (both modes
+	cp -r "$REPO_DIR/dotfiles/.prompts" "$HOME/.prompts/"
+
 	# Install config directories (both modes)
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
