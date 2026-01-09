@@ -9,11 +9,11 @@ Automated development environment setup for **Ubuntu** systems with two installa
 Complete development environment for personal systems:
 
 - **Shell**: zsh, oh-my-zsh, powerlevel10k
-- **Terminal**: terminator
-- **Editor**: Neovim with all plugins and 7 themes
-- **Development**: GDB (custom build), Ghidra, Docker, VirtualBox, meld
+- **Terminal**: alacritty, tmux, tmuxinator
+- **Editor**: Neovim with LSP, treesitter, and 8 themes
+- **Development**: GDB (custom build), Ghidra, Docker, VirtualBox, meld, cppman
 - **Network**: Custom firewall with VM isolation, static IP, system services
-- **Tools**: batcat, ripgrep, git-delta, lazydocker, tree-sitter and many more
+- **Tools**: batcat, ripgrep, git-delta, lazydocker, tree-sitter, asm-lsp and many more
 - **Python**: virtualenvwrapper, autopep8, isort
 - **Build**: Rust/Cargo, Node.js, TeX Live, OpenJDK, bash-language-server
 
@@ -22,10 +22,10 @@ Complete development environment for personal systems:
 Essential dotfiles for corporate/restricted environments:
 
 - **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
-- **Terminal**: terminator
-- **Editor**: Neovim with all plugins and 7 themes
-- **Tools**: batcat, ripgrep, tree-sitter, clangd, clang-format, shellcheck
-- **Build**: Rust/Cargo (for tree-sitter), Node.js (for CoC)
+- **Terminal**: alacritty, tmux, tmuxinator
+- **Editor**: Neovim with LSP, treesitter, and 8 themes
+- **Tools**: batcat, ripgrep, tree-sitter, clangd, clang-format, shellcheck, cppman, asm-lsp
+- **Build**: Rust/Cargo (for tree-sitter & asm-lsp), Node.js (for CoC)
 
 **Skips**: GDB build, Docker, Ghidra, VirtualBox, firewall, TeX Live, system services, git-delta, lazydocker, KeePassXC, meld, ipython3, virtualenvwrapper
 
@@ -38,14 +38,14 @@ bash install_env.sh
 The installer will prompt for:
 
 1. **Installation mode** (FULL or MINIMAL)
-2. **Neovim theme** (molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox)
+2. **Neovim theme** (8 options: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox)
 3. **Network configuration** (FULL mode only - DNS, IP, gateway)
 
 ## Configuration During Installation
 
 ### Neovim Theme Selection (Both Modes)
 
-Choose from 7 colorschemes during installation. Theme is saved to `~/.vim_theme` and can be changed later.
+Choose from 8 colorschemes during installation. Theme is saved to `~/.vim_theme` and can be changed later by editing the file.
 
 ### Network Configuration (FULL Mode Only)
 
@@ -89,6 +89,7 @@ net config
 **Firewall Management:**
 
 - `net config` - Edit `/etc/network.conf` and optionally apply changes (reload Docker + Firewall)
+- `net firewall` - Edit `/etc/firewall.sh` directly and optionally reload
 - `net start` - Reload firewall rules from `/etc/network.conf` (useful if you edit config manually)
 - `net enable` - Enable firewall (set default DROP policy)
 - `net disable` - Disable firewall (set default ACCEPT policy - allows all traffic)
@@ -125,6 +126,7 @@ ssh-copy-id -i ~/.ssh/vbox_vm_name.pub user@vm_ip
 ├── network.conf.example    # Network configuration template
 ├── dotfiles/               # User configurations
 │   ├── .zshrc, .p10k.zsh  # Shell configuration
+│   ├── .tmux.conf         # Tmux configuration
 │   ├── .clang-format      # C/C++ code formatting
 │   ├── .gef.rc            # GDB Enhanced Features
 │   ├── .gdbinit           # GDB configuration
@@ -133,9 +135,9 @@ ssh-copy-id -i ~/.ssh/vbox_vm_name.pub user@vm_ip
 │   ├── firewall.service   # Systemd service (installed to /etc/systemd/system/)
 │   ├── network-static.service # Systemd service (installed to /etc/systemd/system/)
 │   └── .config/           # Application configurations
-│       ├── nvim/          # Neovim with plugins and themes
-│       ├── terminator/    # Terminator terminal
-│       └── coc/           # Conquer of Completion
+│       ├── nvim/          # Neovim with plugins, LSP, and treesitter
+│       ├── alacritty/     # Alacritty terminal emulator
+│       └── coc/           # Conquer of Completion (LSP)
 ├── scripts/               # Utility scripts (net, opensocat, seek, sz)
 ├── patches/               # Patches (gdb.patch, gef.patch)
 └── dockers/               # Docker Compose configurations
@@ -168,4 +170,8 @@ $HOME/
 - **Docker Control** (FULL mode): Use `net don/doff` for container internet access
 - **GDB** (FULL mode): Built from source with multi-arch support and custom patch
 - **Snap Removal**: Optional during installation with apt pinning
-- **Font**: Terminator requires manual configuration to use Agave Nerd Font
+- **Terminal**: Alacritty configured with Agave Nerd Font, launches tmux by default
+- **Neovim LSP**: clangd (C/C++), pyright (Python), bash-language-server (Bash), asm-lsp (Assembly)
+- **Treesitter**: Enabled for better syntax highlighting in 15+ languages
+- **cppman**: C++ documentation with offline mode (cache with `cppman -c`)
+- **Assembly Support**: asm-lsp with ARM and x86/x86-64 support (configure per-project with `.asm-lsp.toml`)

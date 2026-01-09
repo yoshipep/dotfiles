@@ -47,6 +47,7 @@ Plug 'antoinemadec/coc-fzf'
 " Syntax & Language Support
 Plug 'sheerun/vim-polyglot'
 Plug 'nvim-treesitter/nvim-treesitter', { 'do': ':TSUpdate' }
+Plug 'bfrg/vim-c-cpp-modern'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'
 
@@ -62,15 +63,16 @@ Plug 'stsewd/isort.nvim', { 'do': ':UpdateRemotePlugins' }
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'nvim-lua/plenary.nvim'
-Plug 'nvim-telescope/telescope.nvim'
+Plug 'nvim-telescope/telescope.nvim', { 'branch': '0.1.x' }
 Plug 'nvim-telescope/telescope-fzf-native.nvim', { 'do': 'make' }
-Plug 'scrooloose/nerdtree'
+Plug 'MunifTanjim/nui.nvim'
+Plug 'nvim-neo-tree/neo-tree.nvim', { 'branch': 'v3.x' }
 
 " Git Integration
 Plug 'tpope/vim-fugitive'
 
 " UI Enhancements
-Plug 'ryanoasis/vim-devicons'
+Plug 'nvim-tree/nvim-web-devicons'
 Plug 'vim-airline/vim-airline'
 
 call plug#end()
@@ -92,12 +94,16 @@ execute 'colorscheme ' . s:selected_theme
 " Highlight ColorColumn at 120 characters
 call matchadd('ColorColumn', '\%120v', 120)
 
-" Custom colors for CoC menu
+" Custom colors for CoC menu - ensure selected item is visible
 func! s:my_colors_setup() abort
-  highlight CocMenuSel ctermbg=235
+  " CoC menu selection - solid orange background with underline
+  highlight CocMenuSel ctermbg=208 ctermfg=235 cterm=bold,underline guibg=#ff8700 guifg=#282828 gui=bold,underline
+  " Standard Vim popup menu selection
+  highlight PmenuSel ctermbg=208 ctermfg=235 cterm=bold guibg=#ff8700 guifg=#282828 gui=bold
 endfunc
 
 augroup colorscheme_coc_setup | au!
+  au ColorScheme * call s:my_colors_setup()
   au VimEnter * call s:my_colors_setup()
 augroup END
 
@@ -124,6 +130,14 @@ let g:neoformat_tex_latexindent = {
             \ 'stdin': 1
             \ }
 
+" Prettier for markdown formatting
+let g:neoformat_enabled_markdown = ['prettier']
+let g:neoformat_markdown_prettier = {
+            \ 'exe': 'prettier',
+            \ 'args': ['--parser', 'markdown', '--prose-wrap', 'preserve'],
+            \ 'stdin': 1
+            \ }
+
 " --- Doge (Documentation Generator) ---
 let g:doge_doc_standard_python = 'sphinx'
 let g:doge_doc_standard_c = 'kernel_doc'
@@ -138,20 +152,22 @@ let g:isort_command = 'isort'
 let g:vimtex_view_general_viewer = 'evince'
 let g:vimtex_compiler_method = 'latexmk'
 
-" --- Airline ---
-let g:airline#extensions#tabline#enabled = 1
-let g:airline#extensions#branch#enabled = 1
-let g:airline#extensions#syntastic#enabled = 1
-let g:airline#extensions#tabline#buffer_idx_mode = 1
-
 " --- C/C++ ---
 let g:c_syntax_for_h = 1
 
-" --- NERDTree ---
-let NERDTreeQuitOnOpen=1
+let g:cpp_function_highlight = 1
 
-" --- CoC ---
-let g:coc_snippet_next = '<tab>'
+let g:cpp_attributes_highlight = 1
+
+let g:cpp_member_highlight = 1
+
+let g:cpp_type_name_highlight = 1
+
+let g:cpp_operator_highlight = 0
+
+let g:cpp_builtin_types_as_statement = 0
+
+let g:cpp_simple_highlight = 1
 
 " --- Telescope ---
 lua << EOF
@@ -177,6 +193,80 @@ require('telescope').setup{
 require('telescope').load_extension('fzf')
 EOF
 
+" --- nvim-web-devicons ---
+lua << EOF
+require('nvim-web-devicons').setup({
+  default = true,  -- Enable default icons
+})
+EOF
+
+" --- Neo-tree ---
+lua << EOF
+require('neo-tree').setup({
+  close_if_last_window = true,  -- Close Neo-tree if it's the last window
+  popup_border_style = "rounded",
+  enable_git_status = true,
+  enable_diagnostics = true,
+  filesystem = {
+    follow_current_file = {
+      enabled = false,  -- Don't auto-focus current file
+    },
+    hijack_netrw_behavior = "open_default",
+    use_libuv_file_watcher = true,  -- Auto-refresh on file changes
+  },
+  window = {
+    position = "left",
+    width = 30,
+    mappings = {
+      ["<space>"] = "none",  -- Disable space (we use it for other things)
+      ["<cr>"] = "open",
+      ["o"] = "open",
+    },
+  },
+  event_handlers = {
+    {
+      event = "file_opened",
+      handler = function(file_path)
+        require("neo-tree.command").execute({ action = "close" })
+      end
+    },
+  },
+  default_component_configs = {
+    indent = {
+      padding = 0,
+    },
+  },
+})
+EOF
+
+" --- Treesitter ---
+lua << EOF
+require('nvim-treesitter').setup {
+  -- Install parsers for your languages
+  ensure_installed = {
+    "c", "cpp", "python", "bash", "lua", "vim", "vimdoc",
+    "markdown", "markdown_inline", "latex", "rust",
+    "json", "yaml", "toml", "html", "css", "javascript",
+    "make", "cmake"
+  },
+
+  -- Install parsers synchronously (only applied to ensure_installed)
+  sync_install = false,
+
+  -- Automatically install missing parsers when entering buffer
+  auto_install = true,
+
+  highlight = {
+    enable = true,              -- Enable treesitter-based highlighting
+    additional_vim_regex_highlighting = false,  -- Disable old regex highlighting
+  },
+
+  indent = {
+    enable = true               -- Better indentation
+  },
+}
+EOF
+
 " ============================================================================
 " FUNCTIONS
 " ============================================================================
@@ -193,10 +283,75 @@ function! AddHeaderGuards()
     call append('$', '#endif // ' . l:guard . '_H_')
 endfunc
 
-function! CheckBackspace() abort
-  let col = col('.') - 1
-  return !col || getline('.')[col - 1]  =~# '\s'
-endfunction
+function! DetectIndentation()
+    " Skip if buffer is empty or very small
+    if line('$') < 5
+        return
+    endif
+
+    " Count lines with leading tabs vs spaces
+    let l:tab_count = 0
+    let l:space_count = 0
+    let l:space_indent_sizes = {}
+
+    " Sample up to 200 lines for performance
+    let l:max_lines = min([line('$'), 200])
+
+    for l:lnum in range(1, l:max_lines)
+        let l:line = getline(l:lnum)
+
+        " Skip empty lines and lines without indentation
+        if l:line =~ '^\s*$' || l:line !~ '^\s'
+            continue
+        endif
+
+        " Check if line starts with tab
+        if l:line =~ '^\t'
+            let l:tab_count += 1
+        " Check if line starts with spaces
+        elseif l:line =~ '^ '
+            let l:space_count += 1
+
+            " Detect space indent width (2, 4, or 8 spaces)
+            let l:indent = matchstr(l:line, '^ \+')
+            let l:indent_len = len(l:indent)
+
+            " Track indent sizes
+            if l:indent_len > 0
+                let l:space_indent_sizes[l:indent_len] = get(l:space_indent_sizes, l:indent_len, 0) + 1
+            endif
+        endif
+    endfor
+
+    " If we found indented lines, adjust settings
+    if l:tab_count > 0 || l:space_count > 0
+        " Use tabs if tabs are more common
+        if l:tab_count > l:space_count
+            setlocal noexpandtab
+            setlocal tabstop=8
+            setlocal shiftwidth=8
+        " Use spaces if spaces are more common
+        else
+            setlocal expandtab
+
+            " Detect the most common indent width
+            let l:common_width = 4  " default
+            let l:max_occurrences = 0
+
+            for [l:width, l:count] in items(l:space_indent_sizes)
+                " Check for common widths: 2, 4, 8
+                if (l:width == 2 || l:width == 4 || l:width == 8) && l:count > l:max_occurrences
+                    let l:common_width = l:width
+                    let l:max_occurrences = l:count
+                endif
+            endfor
+
+            execute 'setlocal tabstop=' . l:common_width
+            execute 'setlocal shiftwidth=' . l:common_width
+            execute 'setlocal softtabstop=' . l:common_width
+        endif
+    endif
+endfunc
 
 " ============================================================================
 " AUTOCOMMANDS
@@ -208,9 +363,18 @@ augroup RestoreCursorShapeOnExit
     autocmd VimLeave * set guicursor=a:ver35-blinkon1
 augroup END
 
+" Auto-detect indentation (tabs vs spaces)
+augroup DetectIndent
+    autocmd!
+    autocmd BufReadPost * call DetectIndentation()
+augroup END
+
+" Assembly filetype detection
+autocmd BufNewFile,BufRead *.s,*.S,*.asm set filetype=asm
+
 " C/C++ settings
-autocmd FileType c setlocal shiftwidth=8 tabstop=8 softtabstop=8 expandtab commentstring=//\ %s
-autocmd FileType cpp setlocal shiftwidth=8 tabstop=8 softtabstop=8 expandtab  commentstring=//\ %s
+autocmd FileType c setlocal commentstring=//\ %s
+autocmd FileType cpp setlocal commentstring=//\ %s
 autocmd BufNewFile *.h call AddHeaderGuards()
 
 " LaTeX settings
@@ -252,6 +416,13 @@ nnoremap <F5> :e <CR>                  " Refresh current file
 nnoremap <C-S> :w <CR>                 " Write current file
 nnoremap <C-X> :q <CR>                 " Quit VIM
 nnoremap <M-w> :bwipeout <CR>          " Close current buffer
+
+" --- Configuration ---
+nnoremap <leader>s :edit $MYVIMRC<CR>  " Edit init.vim settings
+nnoremap <leader>r :source $MYVIMRC<CR>  " Reload init.vim configuration
+nnoremap <leader>k :execute 'silent !tmux split-window -v "cppman ' . shellescape(expand('<cword>')) . '"'<CR>:redraw!<CR>  " Open cppman in bottom tmux pane
+vnoremap <leader>k y:execute 'silent !tmux split-window -v "cppman ' . shellescape(@") . '"'<CR>:redraw!<CR>  " Open cppman in bottom tmux pane
+vnoremap <leader>cs <Plug>(coc-convert-snippet)  " Create snippet from selected text
 
 " --- Tab Navigation ---
 nnoremap <M-J> :tabNext <CR>           " Move to next tab
@@ -297,9 +468,9 @@ nnoremap <leader>d "_d                 " Delete without yanking
 vnoremap <leader>d "_d                 " Delete without yanking (visual)
 vnoremap <leader>p "_dP                " Paste without yanking
 
-" --- NERDTree ---
-nnoremap <silent> <C-G> :NERDTreeFind<CR>
-nnoremap <silent> <C-A> :NERDTreeToggle<CR>
+" --- Neo-tree ---
+nnoremap <silent> <C-A> :Neotree toggle<CR>
+nnoremap <silent> <C-G> :Neotree reveal<CR>
 
 " --- Commentary ---
 nnoremap <space>/ :Commentary<CR>
@@ -317,10 +488,3 @@ nnoremap <leader>v :VimtexView<CR>
 " --- Telescope ---
 nnoremap <leader>f <cmd>Telescope find_files<cr>
 nnoremap <leader>g <cmd>Telescope live_grep<cr>
-
-" --- CoC Tab Completion & Snippets ---
-inoremap <silent><expr> <TAB>
-      \ coc#pum#visible() ? coc#_select_confirm() :
-      \ coc#expandableOrJumpable() ? "\<C-r>=coc#rpc#request('doKeymap', ['snippets-expand-jump',''])\<CR>" :
-      \ CheckBackspace() ? "\<TAB>" :
-      \ coc#refresh()

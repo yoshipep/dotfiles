@@ -1,0 +1,59 @@
+[general]
+import = [
+    "~/.config/alacritty/themes/tokyonight.toml"
+]
+
+[colors]
+draw_bold_text_with_bright_colors = true
+
+[window]
+decorations="Full"
+startup_mode = "Maximized"
+opacity = 0.75
+
+[scrolling]
+history = 100000
+multiplier = 3
+
+[font]
+size = 13.0
+normal = { family = "Agave Nerd Font", style = "Regular" }
+bold = { family = "Agave Nerd Font", style = "Bold" }
+italic = { family = "Agave Nerd Font", style = "Italic" }
+
+[selection]
+save_to_clipboard = true
+
+[env]
+TERM = "xterm-256color"
+COLORTERM = "truecolor"
+
+[cursor.style]
+shape    = "Underline"
+blinking = "Always"
+
+[cursor]
+unfocused_hollow = false
+blink_interval = 500
+
+[mouse]
+hide_when_typing = true
+
+[keyboard]
+bindings = [
+  # Splits
+  { key = "Return", mods = "Control|Shift", chars = "\uE001" }, # split
+  { key = "H",      mods = "Control|Shift", chars = "\uE002" }, # split
+  # Resizing (Ctrl+Shift+Arrows)
+  { key = "Left",  mods = "Control|Shift", chars = "\uE010" },
+  { key = "Right", mods = "Control|Shift", chars = "\uE011" },
+  { key = "Up",    mods = "Control|Shift", chars = "\uE012" },
+  { key = "Down",  mods = "Control|Shift", chars = "\uE013" },
+  # Maximize / restore (zoom)
+  { key = "X", mods = "Control|Shift", chars = "\u0002z" },
+  { key = "F11", action = "ToggleFullScreen" },
+]
+
+[terminal.shell]
+program = "/usr/bin/tmux"
+args = ["new-session"]

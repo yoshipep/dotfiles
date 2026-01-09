@@ -14,15 +14,26 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
 TEXLIVE_BIN="$(command ls -d /usr/local/texlive/*/bin/x86_64-linux 2>/dev/null | sort -V | tail -n1)"
+# Load Rust/Cargo environment (installed via rustup)
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:${TEXLIVE_BIN}:$PATH"
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
 export MAKEFLAGS="-j$(nproc)"
-export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | batcat -p -lman'"
+# Detect bat/batcat binary (Ubuntu 24.04+ uses 'bat', older uses 'batcat')
+if command -v batcat &> /dev/null; then
+	BAT_CMD="batcat"
+elif command -v bat &> /dev/null; then
+	BAT_CMD="bat"
+else
+	BAT_CMD="cat"
+fi
+export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
 export WORKON_HOME="$HOME/.virtualenvs"
 export CMAKE_TOOLCHAIN_FILE="$HOME/default_toolchain.cmake"
+export EDITOR="/opt/neovim/bin/nvim"
 # Load virtualenvwrapper if installed (FULL mode only)
 [[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
-alias cat='/usr/bin/batcat'
+alias cat="$BAT_CMD"
 alias ls='eza -g --long --header --icons --git'
 alias vim="/opt/neovim/bin/nvim"
 alias c='clear'

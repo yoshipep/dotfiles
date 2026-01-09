@@ -18,8 +18,12 @@
   "snippets.ultisnips.directories": ["custom-snippets"],
   "snippets.ultisnips.pythonPrompt": false,
 
+  // Markdown
+  "markdownlint.config": {
+    "line-length": false
+  },
+
   // C/C++ (clangd)
-  "clangd.path": "/usr/bin/clangd",
   "clangd.arguments": [
     "--header-insertion=never",
     "--compile-commands-dir=build",
@@ -28,10 +32,7 @@
     "--completion-style=detailed",
     "--log=error"
   ],
-  "clangd.fallbackFlags": ["-std=c11", "-Wall"],
-
-  // Python
-  "python.pythonPath": "/usr/bin/python3",
+  "clangd.fallbackFlags": ["-Wall"],
 
   // Bash
   "languageserver": {
@@ -40,6 +41,11 @@
       "args": ["start"],
       "filetypes": ["sh"],
       "ignoredRootPaths": ["~"]
+    },
+    "asm-lsp": {
+      "command": "asm-lsp",
+      "filetypes": ["asm", "s", "S"],
+      "rootPatterns": [".asm-lsp.toml", ".git"]
     }
   },
 

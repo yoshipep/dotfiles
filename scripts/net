@@ -8,6 +8,7 @@
 # start: Load firewall rules
 # status: Show current network status
 # config: Edit /etc/network.conf, reload Docker, and optionally apply to firewall
+# firewall: Edit /etc/firewall.sh and optionally reload
 
 if [[ "$1" == "on" ]]; then
 	ACTION="enable-net"
@@ -51,6 +52,33 @@ elif [[ "$1" == "status" ]]; then
 	echo -e "Host network:   $host_status"
 	echo -e "Docker network: $docker_status"
 	exit 0
+elif [[ "$1" == "firewall" ]]; then
+	# Edit firewall script directly
+	FIREWALL_FILE="/etc/firewall.sh"
+
+	if [[ ! -f "$FIREWALL_FILE" ]]; then
+		echo "[!] ERROR: Firewall script not found: $FIREWALL_FILE"
+		exit 1
+	fi
+
+	# Open in editor (requires sudo)
+	sudo ${EDITOR:-/opt/neovim/bin/nvim} "$FIREWALL_FILE"
+
+	echo "[+] Firewall script updated"
+	echo ""
+
+	# Ask if user wants to reload firewall
+	read -p "Reload firewall now? [Y/n]: " reload_fw
+	if [[ "$reload_fw" =~ ^[Nn]$ ]]; then
+		echo "[!] Firewall NOT reloaded. Run 'net start' to apply changes manually."
+		exit 0
+	fi
+
+	# Apply firewall changes
+	echo "[+] Reloading firewall..."
+	sudo /etc/firewall.sh start 'silent'
+	echo "[+] Firewall reloaded successfully!"
+	exit 0
 elif [[ "$1" == "config" ]]; then
 	# Edit system-wide network configuration
 	CONFIG_FILE="/etc/network.conf"
@@ -61,7 +89,7 @@ elif [[ "$1" == "config" ]]; then
 	fi
 
 	# Open in editor (requires sudo)
-	sudo ${EDITOR:-vim} "$CONFIG_FILE"
+	sudo ${EDITOR:-/opt/neovim/bin/nvim} "$CONFIG_FILE"
 
 	echo "[+] Network configuration file updated"
 	echo ""
@@ -101,19 +129,20 @@ elif [[ "$1" == "config" ]]; then
 	echo "[+] All changes applied successfully!"
 	exit 0
 else
-	echo "Usage: $0 [on|off|don|doff|disable|enable|flush|start|status|config]" 1>&2;
+	echo "Usage: $0 [on|off|don|doff|disable|enable|flush|start|status|config|firewall]" 1>&2;
 	echo "" 1>&2;
 	echo "Commands:" 1>&2;
-	echo "  on      - Enable host network access" 1>&2;
-	echo "  off     - Disable host network access" 1>&2;
-	echo "  don     - Enable Docker network access" 1>&2;
-	echo "  doff    - Disable Docker network access" 1>&2;
-	echo "  enable  - Enable firewall (default DROP policy)" 1>&2;
-	echo "  disable - Disable firewall (default ACCEPT policy)" 1>&2;
-	echo "  flush   - Flush all iptables rules" 1>&2;
-	echo "  start   - Load/restart firewall rules" 1>&2;
-	echo "  status  - Show current network status" 1>&2;
-	echo "  config  - Edit network config, reload Docker, and optionally apply to firewall" 1>&2;
+	echo "  on       - Enable host network access" 1>&2;
+	echo "  off      - Disable host network access" 1>&2;
+	echo "  don      - Enable Docker network access" 1>&2;
+	echo "  doff     - Disable Docker network access" 1>&2;
+	echo "  enable   - Enable firewall (default DROP policy)" 1>&2;
+	echo "  disable  - Disable firewall (default ACCEPT policy)" 1>&2;
+	echo "  flush    - Flush all iptables rules" 1>&2;
+	echo "  start    - Load/restart firewall rules" 1>&2;
+	echo "  status   - Show current network status" 1>&2;
+	echo "  config   - Edit network config, reload Docker, and optionally apply to firewall" 1>&2;
+	echo "  firewall - Edit firewall script and optionally reload" 1>&2;
 	exit 1
 fi
 

@@ -93,23 +93,37 @@ checkPackages() {
 	$INSTALL git
 	$INSTALL curl
 	$INSTALL wget
-	$INSTALL pip
+	$INSTALL python3-pip
+	$INSTALL pipx
 	$INSTALL "python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
-	$INSTALL python3-autopep8
 	$INSTALL python3-pynvim
-	$INSTALL python3-isort
-	$INSTALL isort
 	$INSTALL htop
 	$INSTALL clangd
 	$INSTALL clang-format
 	$INSTALL xclip
 	$INSTALL shellcheck
-	$INSTALL terminator
+	$INSTALL tmux
+	$INSTALL tmuxinator
+	$INSTALL libssl-dev
+	$INSTALL pkg-config
+	# Alacritty build dependencies
+	$INSTALL cmake
+	$INSTALL libfreetype-dev
+	$INSTALL libfontconfig1-dev
+	$INSTALL libxcb-xfixes0-dev
+	$INSTALL libxkbcommon-dev
 
-	# Rust and Cargo (both modes - needed for tree-sitter)
+	# Install Python CLI tools via pipx (isolated environments)
+	pipx install autopep8
+	pipx install isort
+	pipx install cppman
+
+	# Rust and Cargo (both modes - needed for tree-sitter, asm-lsp, and alacritty)
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
 	cargo install --locked tree-sitter-cli
+	cargo install asm-lsp
+	cargo install alacritty
 
 	# Node.js (both modes - needed for CoC)
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
@@ -157,6 +171,7 @@ checkPackages() {
 		# Additional npm packages
 		npm i -g yarn
 		npm i -g bash-language-server
+		npm i -g prettier
 
 		# Docker setup
 		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
@@ -377,7 +392,8 @@ importCFG() {
 	# Install config directories (both modes)
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-	cp -r "$REPO_DIR/dotfiles/.config/terminator" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
+	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
 
 	# Create snippet symlinks (both modes)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
@@ -426,9 +442,10 @@ importCFG() {
 	# Setup Neovim plugins (both modes)
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh" +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
 
 	if [[ "$MODE" != "full" ]]; then
 		echo "[+] MINIMAL installation complete!"
@@ -454,7 +471,7 @@ importCFG() {
 
 	# Prompt user to configure network.conf
 	read -n 1 -r -s -p $'[!] REQUIRED: Configure network settings in network.conf\n    - DNS_SERVER: Your DNS server IP (Pi-hole, router, or 8.8.8.8)\n    - HOST_IP: This machine\'s static IP address\n    - GATEWAY: Your router\'s IP address\n    - NETMASK: Network mask (default: 24 for 255.255.255.0)\n    - WAN_IFACE: Leave empty for auto-detection or specify interface name\nPress enter to open the file...\n'
-	vim "$REPO_DIR/network.conf"
+	/opt/neovim/bin/nvim "$REPO_DIR/network.conf"
 
 	# Source network.conf to load values
 	source "$REPO_DIR/network.conf"
@@ -547,14 +564,14 @@ importCFG() {
 	# Optional IPv6 disable
 	read -r -p "[?] Disable ipv6 (y/n): " user_input
 	if [[ "$user_input" == "y" ]]; then
-		sudo vim /etc/default/grub
+		sudo /opt/neovim/bin/nvim /etc/default/grub
 		sudo update-grub
 	fi
 
 	# Configure IPv4 forwarding
 	echo ""
 	read -n 1 -r -s -p $'[!] REQUIRED: Enable IPv4 forwarding in /etc/sysctl.conf\n    Add or uncomment: net.ipv4.ip_forward=1\nPress enter to open the file...\n'
-	sudo vim /etc/sysctl.conf
+	sudo /opt/neovim/bin/nvim /etc/sysctl.conf
 
 	# Network and firewall scripts already installed to /etc/
 	echo "[+] Network and firewall configuration installed to /etc/"
@@ -576,6 +593,22 @@ importCFG() {
 
 	# Set RTC to local time (for dual-boot)
 	timedatectl set-local-rtc 1
+
+	# Cache cppman pages for offline use (LAST STEP - takes 1+ hours)
+	echo ""
+	echo "[!] ============================================================"
+	echo "[!] FINAL STEP: Caching cppman pages for offline use"
+	echo "[!] WARNING: This step takes 1+ hours to download all C++ documentation"
+	echo "[!] ============================================================"
+	echo ""
+	read -r -p "[?] Cache cppman pages now? (y/n): " cache_cppman
+	if [[ "$cache_cppman" =~ ^[Yy]$ ]]; then
+		echo "[+] Caching cppman pages... This will take a while. You can Ctrl+C to skip."
+		cppman -c || echo "[!] cppman caching failed or was interrupted"
+		echo "[+] cppman caching complete!"
+	else
+		echo "[!] Skipping cppman cache. You can cache later with: cppman -c"
+	fi
 }
 
 echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
@@ -604,7 +637,7 @@ esac
 echo ""
 if [[ "$INSTALL_MODE" == "full" ]]; then
 	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: terminator"
+	echo "[+] Terminal: alacritty, tmux, tmuxinator"
 	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
 	echo "[+] Editor: neovim"
 	echo "[+] Tools: batcat, ripgrep, git-delta, lazydocker"
@@ -616,7 +649,7 @@ if [[ "$INSTALL_MODE" == "full" ]]; then
 	echo "[+] System: Firewall, network services, Docker"
 else
 	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: terminator"
+	echo "[+] Terminal: alacritty, tmux, tmuxinator"
 	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
 	echo "[+] Editor: neovim"
 	echo "[+] Tools: batcat, ripgrep"
