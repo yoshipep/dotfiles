@@ -15,6 +15,8 @@ syntax enable
 set nospell
 set list
 set listchars=eol:⏎,tab:␉·,trail:␠,nbsp:⎵
+set cmdheight=0
+set noshowmode
 
 " Indentation & Formatting
 filetype plugin indent on
