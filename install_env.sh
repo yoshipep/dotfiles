@@ -378,32 +378,24 @@ importCFG() {
 	# Install universal-ctags from apt (both modes)
 	$INSTALL universal-ctags
 
-	# Install dotfiles (both modes)
-	cd "$HOME"
-	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
-	cp "$REPO_DIR/dotfiles/.p10k.zsh" "$HOME/"
-	cp "$REPO_DIR/dotfiles/.gitconfig" "$HOME/"
-	cp "$REPO_DIR/dotfiles/.clang-format" "$HOME/"
-	cp -r "$REPO_DIR/dotfiles/.ssh" "$HOME/" 2>/dev/null || echo "SSH config skipped"
-
-	# Install prompts directory (both modes
-	cp -r "$REPO_DIR/dotfiles/.prompts" "$HOME/.prompts/"
-
-	# Install config directories (both modes)
+	# ============================================================================
+	# STAGE 1: Neovim config (required early for plugin setup)
+	# ============================================================================
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
-	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
 
-	# Create snippet symlinks (both modes)
+	# Create snippet symlinks (required for nvim plugin setup)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/S.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 
+	# ============================================================================
+	# STAGE 2: FULL MODE - Heavy build processes (patches, TeX Live, GDB)
+	# ============================================================================
 	if [[ "$MODE" == "full" ]]; then
-		echo "[+] Importing FULL configuration..."
+		echo "[+] FULL configuration (Stage 2: Build processes)..."
 
-		# Full mode: Heavy build processes
+		# Copy patches (required for GDB build)
 		mkdir -p patches
 		cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
 
@@ -426,26 +418,35 @@ importCFG() {
 		make -j "$(nproc)"
 		sudo make install
 
-		# Full mode dotfiles
-		cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
+		# Copy .gdbinit (required before GEF/GEP installation)
 		cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
-
-		# Install scripts (firewall, network)
-		mkdir -p "$HOME/scripts"
-		cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
-		chmod +x "$HOME/scripts/"*
 	else
 		echo "[+] Importing MINIMAL configuration..."
 		# Minimal mode skips: TeX Live, GDB build, GEF, network scripts
 	fi
 
-	# Setup Neovim plugins (both modes)
+	# ============================================================================
+	# STAGE 3: Neovim plugin setup (both modes)
+	# ============================================================================
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
 	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
 	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
+
+	# ============================================================================
+	# STAGE 4: Common dotfiles (both modes - after plugin setup)
+	# ============================================================================
+	cd "$HOME"
+	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
+	cp "$REPO_DIR/dotfiles/.p10k.zsh" "$HOME/"
+	cp "$REPO_DIR/dotfiles/.gitconfig" "$HOME/"
+	cp "$REPO_DIR/dotfiles/.clang-format" "$HOME/"
+	cp -r "$REPO_DIR/dotfiles/.ssh" "$HOME/" 2>/dev/null || echo "SSH config skipped"
+	cp -r "$REPO_DIR/dotfiles/.prompts" "$HOME/.prompts/"
+	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
+	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
 
 	if [[ "$MODE" != "full" ]]; then
 		echo "[+] MINIMAL installation complete!"
@@ -560,6 +561,18 @@ importCFG() {
 	else
 		echo "[!] Warning: GEF file not found, patch not applied"
 	fi
+
+	# Install GEP (GDB Enhanced Prompt)
+	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
+	"$HOME/.local/share/GEP/install.sh"
+
+	# ============================================================================
+	# FULL MODE: Final dotfiles (after GEF/GEP installation)
+	# ============================================================================
+	cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
+	mkdir -p "$HOME/scripts"
+	cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
+	chmod +x "$HOME/scripts/"*
 
 	# Optional IPv6 disable
 	read -r -p "[?] Disable ipv6 (y/n): " user_input

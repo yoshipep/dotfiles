@@ -1,5 +1,3 @@
-source ~/.gef-2025.01.py
-source ~/.local/share/GEP/gdbinit-gep.py
 set disassembly-flavor intel
 set print demangle off
 set print asm-demangle off
