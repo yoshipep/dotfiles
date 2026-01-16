@@ -96,7 +96,7 @@ require('neo-tree').setup({
   enable_diagnostics = true,
   filesystem = {
     follow_current_file = {
-      enabled = false,  -- Don't auto-focus current file
+      enabled = true,  -- Auto-focus current file
     },
     hijack_netrw_behavior = "open_default",
     use_libuv_file_watcher = true,  -- Auto-refresh on file changes
