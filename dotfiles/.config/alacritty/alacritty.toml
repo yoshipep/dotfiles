@@ -52,6 +52,8 @@ bindings = [
   # Maximize / restore (zoom)
   { key = "X", mods = "Control|Shift", chars = "\u0002z" },
   { key = "F11", action = "ToggleFullScreen" },
+  # Rotate panes
+  { key = "R", mods = "Super|Shift", chars = "\uE020" },
 ]
 
 [terminal.shell]
