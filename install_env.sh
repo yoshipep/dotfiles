@@ -121,6 +121,7 @@ checkPackages() {
 	# Rust and Cargo (both modes - needed for tree-sitter, asm-lsp, and alacritty)
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
+	rustup component add rust-analyzer
 	cargo install --locked tree-sitter-cli
 	cargo install asm-lsp
 	cargo install alacritty
