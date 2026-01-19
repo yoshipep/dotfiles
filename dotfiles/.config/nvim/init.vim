@@ -48,7 +48,7 @@ Plug 'antoinemadec/coc-fzf'
 
 " Syntax & Language Support
 Plug 'sheerun/vim-polyglot'
-Plug 'nvim-treesitter/nvim-treesitter', { 'do': ':TSUpdate' }
+Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'master', 'do': ':TSUpdate' }
 Plug 'bfrg/vim-c-cpp-modern'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'

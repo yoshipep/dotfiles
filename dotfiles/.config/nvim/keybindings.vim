@@ -6,6 +6,7 @@
 nnoremap <F5> :e <CR>                  " Refresh current file
 nnoremap <C-S> :w <CR>                 " Write current file
 nnoremap <C-X> :q <CR>                 " Quit VIM
+nnoremap <C-N> :enew <CR>              " Open new buffer
 nnoremap <M-w> :bwipeout <CR>          " Close current buffer
 
 " --- Configuration ---
