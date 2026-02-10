@@ -10,7 +10,7 @@ nnoremap <C-N> :enew <CR>              " Open new buffer
 nnoremap <M-w> :bwipeout <CR>          " Close current buffer
 
 " --- Configuration ---
-nnoremap <leader>s :edit $MYVIMRC<CR>  " Edit init.vim settings
+nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR> " Edit init.vim and cd to its directory
 nnoremap <leader>r :source $MYVIMRC<CR>  " Reload init.vim configuration
 nnoremap <leader>k :execute 'silent !tmux split-window -v "cppman ' . shellescape(expand('<cword>')) . '"'<CR>:redraw!<CR>  " Open cppman in bottom tmux pane
 vnoremap <leader>k y:execute 'silent !tmux split-window -v "cppman ' . shellescape(@") . '"'<CR>:redraw!<CR>  " Open cppman in bottom tmux pane

@@ -1,9 +1,9 @@
 [user]
-	email = jcomes@jcomes.org
 	name = Josep Comes
+	email = jcomes@jcomes.org
 [alias]
 	s = status
-	lg = log --oneline --decorate --all --graph
+	lg = log --oneline --decorate --all --graph --color --pretty=format:'%Cred%h%Creset - %Cgreen%an%Creset [%ar]: %s %Cblue%d%Creset'
 [core]
 	pager = delta
 	editor = vim
@@ -16,11 +16,10 @@
 	line-numbers = true
 [merge]
 	conflictstyle = diff3
-	tool = meld
+	tool = nvimdiff
 [diff]
 	colorMoved = default
 	algorithm = histogram
+	tool = nvimdiff
 [init]
 	defaultBranch = master
-[merge]
-	tool = meld

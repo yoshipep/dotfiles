@@ -62,8 +62,29 @@ endfunction
 " Highlight symbol under cursor on CursorHold
 autocmd CursorHold * silent call CocActionAsync('highlight')
 
-" Remap for rename current word
-nmap <leader>rn <Plug>(coc-rename)
+" Remap for rename current word, auto-save all modified buffers and close
+" any newly opened ones afterward
+function! s:rename_and_save() abort
+  let l:bufs_before = getbufinfo({'buflisted': 1})
+  let l:known = {}
+  for b in l:bufs_before
+    let l:known[b.bufnr] = 1
+  endfor
+  call CocActionAsync('rename', '', {err, res ->
+    \ execute('silent! wa') + s:close_new_buffers(l:known)
+    \ })
+endfunction
+
+function! s:close_new_buffers(known) abort
+  let l:cur = bufnr('%')
+  for b in getbufinfo({'buflisted': 1})
+    if !has_key(a:known, b.bufnr) && b.bufnr != l:cur
+      execute 'silent! bdelete' b.bufnr
+    endif
+  endfor
+endfunction
+
+nmap <silent> <leader>rn :call <SID>rename_and_save()<CR>
 
 augroup mygroup
   autocmd!
