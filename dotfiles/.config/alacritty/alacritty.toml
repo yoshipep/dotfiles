@@ -54,6 +54,8 @@ bindings = [
   { key = "F11", action = "ToggleFullScreen" },
   # Rotate panes
   { key = "R", mods = "Super|Shift", chars = "\uE020" },
+  # New session
+  { key = "S", mods = "Control|Shift", chars = "\uE030" },
 ]
 
 [terminal.shell]
