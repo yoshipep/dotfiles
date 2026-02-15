@@ -20,7 +20,7 @@ RUN useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME}
 
 # Switch to the user
 USER ${USER_NAME}
-WORKDIR /home/${USER_NAME}
+WORKDIR /home/${USER_NAME}/repos
 
 # Install Claude Code using native installer (handles auto-updates)
 RUN curl -fsSL https://claude.ai/install.sh | bash

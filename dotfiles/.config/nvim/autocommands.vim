@@ -46,8 +46,9 @@ autocmd BufRead,BufNewFile *.lds set ft=ld
 autocmd BufRead,BufNewFile *.s setfiletype asm
 autocmd BufRead,BufNewFile *.S setfiletype asm
 
-" CoC format on save
-augroup CocFormatOnSave
+" Format on save
+augroup FormatOnSave
   autocmd!
-  autocmd BufWritePre * silent! call CocAction('format')
+  autocmd BufWritePre *.tex silent! Neoformat
+  autocmd BufWritePre * if &filetype !=# 'tex' | silent! call CocAction('format') | endif
 augroup END
