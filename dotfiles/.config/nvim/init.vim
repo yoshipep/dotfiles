@@ -2,7 +2,7 @@
 " LEADER KEY & BASIC SETTINGS
 " ============================================================================
 
-let mapleader = ","
+let mapleader = "\<Space>"
 
 " UI Settings
 set number

@@ -65,8 +65,8 @@ nnoremap <silent> <C-A> :Neotree toggle<CR>
 nnoremap <silent> <C-G> :Neotree reveal<CR>
 
 " --- Commentary ---
-nnoremap <space>/ :Commentary<CR>
-vnoremap <space>/ :Commentary<CR>
+nnoremap <leader>/ :Commentary<CR>
+vnoremap <leader>/ :Commentary<CR>
 
 " --- Documentation Generator (Doge) ---
 nmap <silent> <Leader>d <Plug>(doge-generate)
