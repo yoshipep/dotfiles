@@ -58,6 +58,22 @@ bindings = [
   { key = "S", mods = "Control|Shift", chars = "\uE030" },
 ]
 
+[hints]
+[[hints.enabled]]
+command = "xdg-open"
+hyperlinks = true
+post_processing = true
+persist = false
+regex = "(https?://|git://|ssh://|ftp://|mailto:)[^\u0000-\u001F\u007F-\u009F<>\"\\s{-}\\^⟨⟩`]+"
+
+[hints.enabled.binding]
+key = "U"
+mods = "Control|Shift"
+
+[hints.enabled.mouse]
+enabled = true
+mods = "Control"
+
 [terminal.shell]
 program = "/usr/bin/tmux"
 args = ["new-session"]

@@ -195,10 +195,12 @@ follow the next ones
 - Ask to the user which build system has to be used: Make or Cmake
 - Leave an empty space before a single line comment (`// foo`)
 - Leave an empty line between functions
-- Use standard types: `uint8_t`, `int8_t`, `uint32_t` and so on
+- Always include `<stdint.h>` (C) or `<cstdint>` (C++) and use fixed-width types (`uint8_t`, `int32_t`, etc.). Avoid
+  plain `int`, `long`, etc. except where an API requires them. Use `size_t` for array indices and sizes. Use
+  `uint32_t`/`int32_t` for counters where you control the range
 - For new/standalone projects, place source code under `src/` folder and header files under `include/`. Subfolders are
   allowed. When working on existing projects, follow the existing structure
-- In loops use pre increment `++var` for the update variable: `for (int i = 0; i < 50; ++i)`
+- In loops use pre-increment `++var` for the update variable: `for (int32_t i = 0; i < 50; ++i)`
 - Use Yoda style for equality checks with literals or function calls. E.g.:
 
   ```c
@@ -256,6 +258,36 @@ follow the next ones
   ```
 
 - Pointer declarations attach the asterisk to the variable name: `char *ptr`, not `char* ptr`
+- Use `const` for pointer parameters and return types when the data is not modified. Do not use `const` on local
+  variables:
+
+  ```c
+  const char *get_name(void);
+  void print(const char *str);
+  ```
+
+- Avoid `typedef` on structs and enums unless deliberately hiding implementation details. Use the full `struct foo` /
+  `enum foo` at point of use
+- Enums use `snake_case` for the type name and prefixed `ALL_CAPS` for enumerators. No typedef:
+
+  ```c
+  enum hrtimer_mode {
+      HRTIMER_MODE_ABS = 0x00,
+      HRTIMER_MODE_REL = 0x01,
+  };
+  ```
+
+- Avoid function-like macros except for utility patterns like `LOG` and `ASSERT`. Prefer `static inline` otherwise
+- Error handling via return value. Convention:
+  - Return `int` (0 = success, `< 0` = error) when the function does work with no meaningful return value
+  - Return pointer (`NULL` = error) when the function's primary job is to produce a pointer
+  - Return `int` error code + output via pointer param when the function both produces a value and can fail
+
+  ```c
+  int do_work(void);                        // 0 or < 0
+  struct foo *alloc_foo(void);              // NULL on error
+  int get_value(uint32_t *out);             // 0 or < 0, result in out
+  ```
 
 ## C++ specific guidelines
 
@@ -292,6 +324,21 @@ follow the next ones
   ```
 
 - Pointer declarations attach the asterisk to the variable name: `char *ptr`, not `char* ptr`
+- Prefer `enum class` over unscoped enums. For `enum class`, use PascalCase for both the type and enumerators:
+
+  ```cpp
+  enum class Color { Red, Green, Blue };
+  enum class Permission { Read = 1 << 0, Write = 1 << 1 };
+  ```
+
+- Unscoped enums are allowed only for bitmask/flags use cases where implicit integer conversion is needed. In that
+  case, prefix enumerators with the type name:
+
+  ```cpp
+  enum Permission { Permission_Read = 1 << 0, Permission_Write = 1 << 1 };
+  Permission p = Permission_Read | Permission_Write;
+  ```
+
 - Header files must use `.hpp` extension unless this header is intended to also be used in C. If that's the case and you
   create the file, then add appropriate guards (`#ifdef __cplusplus`).
 - Do not use ifdef guards for `.hpp` files, instead use `#pragma once`
@@ -325,7 +372,8 @@ follow the next ones
   ```
 
 - Prefer RAII—tie resource lifetime (memory, files, locks) to object lifetime
-- Prefer smart pointers (`std::unique_ptr`, `std::shared_ptr`) over raw pointers
+- Prefer smart pointers (`std::unique_ptr`, `std::shared_ptr`) over raw pointers. Default to `std::unique_ptr`;
+  use `std::shared_ptr` only when shared ownership is genuinely needed
 - Prefer references over pointers when null is not a valid value
 - Always use `nullptr` instead of `NULL` or `0`
 - Prefer `constexpr` over `const` or `#define` for compile-time constants
@@ -341,6 +389,23 @@ follow the next ones
   typedef void (*callback_t)(int);
   ```
 
+- Any class with virtual methods must have a virtual destructor
+- Mark overriding methods with `override`. Do not use abstract classes unless genuinely needed - a class can provide
+  a default implementation and still mark methods as `virtual`
+- Implementation always goes in `.cpp` files. The only exception is small free helper functions that are genuinely
+  shared and belong logically in the header. Class member definitions must never be defined inside the header
+- Error handling:
+  - Throw exceptions for unexpected failures (including constructors that cannot complete initialization)
+  - Use `std::optional<T>` for functions where "not found" / "not present" is an expected outcome
+  - Use return codes (consistent with C conventions) for operations where failure is a normal expected path
+  - Use `assert` for programming errors and invariant violations that are unrecoverable
+
+  ```cpp
+  File open(const std::string &path);       // throws on unexpected failure
+  std::optional<User> find_user(int32_t id); // not found is normal, not exceptional
+  int32_t connect(const std::string &addr);  // < 0 on expected failure
+  ```
+
 - When using C libraries, wrap them in RAII classes. Raw pointers are OK internally for C interop, but expose a C++
   friendly interface (references, smart pointers) externally:
 
@@ -353,6 +418,59 @@ follow the next ones
   private:
       sqlite3 *db_;  // raw pointer OK for C interop
   };
+  ```
+
+## Build systems
+
+### CMake
+
+- Minimum version: 3.21
+- Use modern CMake (target-based): `target_include_directories`, `target_link_libraries`, `target_compile_options`.
+  Never use global `include_directories`, `link_libraries`, etc.
+- Build output always goes under `build/`. Never build in the source tree
+- Pass build type manually: `cmake -DCMAKE_BUILD_TYPE=Debug ..`
+- Three build types:
+  - `Debug`: `-Wall -Wextra`, no optimization
+  - `Release`: `-O2`, full LTO (`-flto`), strip symbols
+  - `Asan`: AddressSanitizer + UBSan (`-fsanitize=address,undefined`), no optimization
+
+  ```cmake
+  cmake_minimum_required(VERSION 3.21)
+  project(my_project)
+
+  add_executable(my_target src/main.cpp)
+
+  target_compile_options(my_target PRIVATE
+      $<$<CONFIG:Debug>:-Wall -Wextra>
+      $<$<CONFIG:Release>:-O2 -flto>
+      $<$<CONFIG:Asan>:-fsanitize=address,undefined -fno-omit-frame-pointer>
+  )
+  target_link_options(my_target PRIVATE
+      $<$<CONFIG:Release>:-flto -s>
+      $<$<CONFIG:Asan>:-fsanitize=address,undefined>
+  )
+  ```
+
+### Makefiles
+
+- Write by hand unless using CMake
+- Always define `all` as the default target and `clean` as a phony target
+- Add `install` only when the project warrants it
+- Follow standard variable conventions: `CC`, `CXX`, `CFLAGS`, `CXXFLAGS`, `LDFLAGS`, `LDLIBS`
+
+  ```makefile
+  CC      = gcc
+  CFLAGS  = -Wall -Wextra
+
+  .PHONY: all clean
+
+  all: my_target
+
+  my_target: src/main.c
+  	$(CC) $(CFLAGS) -o $@ $^
+
+  clean:
+  	rm -f my_target
   ```
 
 ## Python guidelines
@@ -397,6 +515,32 @@ follow the next ones
 
 - Sort imports in alphabetical order
 - Use t-strings always. If python version doesn't have support for t-strings use f-strings
+- Use the `logging` module, never `print` for diagnostic output. Use a per-module logger:
+
+  ```python
+  import logging
+  logger = logging.getLogger(__name__)
+  ```
+
+  Set up a colored formatter in `main()` using a custom formatter (see logging snippet). Log levels:
+  - `DEBUG`: detailed diagnostic info
+  - `INFO`: normal operation
+  - `WARNING`: orange - unexpected but recoverable
+  - `ERROR`: red - operation failed
+  - `CRITICAL`: bold red - fatal, program cannot continue
+
+- Error handling: prefer built-in exceptions (`ValueError`, `TypeError`, `RuntimeError`, `OSError`, etc.) when they
+  semantically match. Define custom exception classes when the error is domain-specific or callers need to
+  distinguish it:
+
+  ```python
+  class ParseError(Exception):
+      """Raised when input cannot be parsed."""
+      pass
+  ```
+
+- Project structure: place source code directly under `my_package/`. Use `pyproject.toml` for projects that need
+  packaging
 
 ## Rust guidelines
 

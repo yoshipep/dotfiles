@@ -99,6 +99,39 @@ def get_argparser():
     return parser
 endsnippet
 
+snippet logging-setup "Colored logging setup"
+import logging
+
+class _ColorFormatter(logging.Formatter):
+    _COLORS = {
+        logging.DEBUG:    '\033[0m',
+        logging.INFO:     '\033[32m',
+        logging.WARNING:  '\033[33m',
+        logging.ERROR:    '\033[31m',
+        logging.CRITICAL: '\033[1;31m',
+    }
+    _RESET = '\033[0m'
+    _FMT = '[%(levelname)s] %(asctime)s - %(message)s'
+    _DATE_FMT = '%Y-%m-%d %H:%M:%S'
+
+    def format(self, record: logging.LogRecord) -> str:
+        color = self._COLORS.get(record.levelno, self._RESET)
+        formatter = logging.Formatter(
+            f'{color}{self._FMT}{self._RESET}',
+            datefmt=self._DATE_FMT
+        )
+        return formatter.format(record)
+
+
+def setup_logging(level: int = logging.DEBUG) -> None:
+    handler = logging.StreamHandler()
+    handler.setFormatter(_ColorFormatter())
+    logging.basicConfig(level=level, handlers=[handler])
+
+
+logger = logging.getLogger(__name__)
+endsnippet
+
 snippet hexdump-fcn "Hexdump function definition"
 # Hexdump-like console log
 # perline: number of bytes per line to be shown in the hexdump
