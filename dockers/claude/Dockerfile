@@ -9,14 +9,17 @@ RUN apt-get update && apt-get install -y \
     git \
     bash \
     ca-certificates \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Accept build argument for user ID
 ARG USER_ID
 ARG USER_NAME=claude
 
-# Create user with specified UID
-RUN useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME}
+# Create user with specified UID and grant passwordless sudo
+RUN useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME} \
+    && echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER_NAME} \
+    && chmod 0440 /etc/sudoers.d/${USER_NAME}
 
 # Switch to the user
 USER ${USER_NAME}
