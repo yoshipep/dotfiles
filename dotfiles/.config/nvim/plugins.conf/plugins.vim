@@ -80,6 +80,14 @@ require('telescope').setup{
 require('telescope').load_extension('fzf')
 EOF
 
+" --- ansi.nvim ---
+lua << EOF
+require('ansi').setup({
+  auto_enable = true,
+  filetypes = { 'log', 'ansi', 'term', 'text' }
+})
+EOF
+
 " --- nvim-web-devicons ---
 lua << EOF
 require('nvim-web-devicons').setup({
