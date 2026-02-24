@@ -29,11 +29,12 @@ else
 fi
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
 export WORKON_HOME="$HOME/.virtualenvs"
-export CMAKE_TOOLCHAIN_FILE="$HOME/default_toolchain.cmake"
+export CMAKE_EXPORT_COMPILE_COMMANDS=ON
 export EDITOR="/opt/neovim/bin/nvim"
 # Load virtualenvwrapper if installed (FULL mode only)
 [[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
 alias cat="$BAT_CMD"
+alias catnp="$BAT_CMD --paging=never"
 alias ls='eza -g --long --header --icons --git'
 alias vim="/opt/neovim/bin/nvim"
 alias c='clear'
@@ -45,6 +46,7 @@ alias uu='sudo apt update; sudo apt upgrade -y'
 alias python='python3'
 alias ipy='ipython --no-confirm-exit --pprint --colors=NoColor --autocall=1'
 alias ht='htop'
+alias mkcd='function _mkcd() { mkdir "$1" && cd "$1" }; _mkcd'
 alias findf='function _findf() { find . -type f -name "$1" 2>/dev/null; }; _findf'
 alias findd='function _findd() { find . -type d -name "$1" 2>/dev/null; }; _findd'
 alias cpv='function _cpv() { cp "$1" "$2" && vim "$2"; }; _cpv'
@@ -52,11 +54,14 @@ alias create_patch='function _patch() { diff -u "$1" "$2" > "$3"; }; _patch'
 alias bdiff='function _diff() { diff --suppress-common-lines --color=always -y <(xxd "$1") <(xxd "$2"); }; _diff'
 alias g='git'
 alias gotmp="cd $(mktemp -d)"
-alias clatex='rm *.acn *.aux *.fdb_latexmk *.fls *.glo *.ist *.log *.out *.synctex.gz *.toc'
+alias clatex='setopt localoptions nullglob; rm -f *.acn *.aux *.fdb_latexmk *.fls *.glo *.ist *.log *.out *.synctex.gz *.toc'
 alias rc='reset && clear'
+alias lzd='lazydocker'
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+fpath+=${ZDOTDIR:-~}/.zsh_functions
