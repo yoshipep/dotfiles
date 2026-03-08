@@ -80,3 +80,13 @@ nnoremap <leader>v :VimtexView<CR>
 " --- Telescope ---
 nnoremap <leader>f <cmd>Telescope find_files<cr>
 nnoremap <leader>g <cmd>Telescope live_grep<cr>
+
+" --- Clipboard ---
+nnoremap <leader>cp :let @+=expand('%:p')<CR>
+
+" --- vim-fugitive ---
+nnoremap <silent> <leader>G :Git<CR>
+
+" --- gitsigns.nvim ---
+nnoremap <silent> <leader>hp :Gitsigns preview_hunk<CR>
+nnoremap <silent> <leader>rh :Gitsigns reset_hunk<CR>

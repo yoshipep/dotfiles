@@ -72,6 +72,7 @@ Plug 'nvim-neo-tree/neo-tree.nvim', { 'branch': 'v3.x' }
 " Git Integration
 Plug 'tpope/vim-fugitive'
 Plug 'tpope/vim-obsession'
+Plug 'lewis6991/gitsigns.nvim'
 
 " UI Enhancements
 Plug 'nvim-tree/nvim-web-devicons'
