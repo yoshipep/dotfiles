@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     bash \
     ca-certificates \
     sudo \
+    clangd \
+    python3 \
+    python3-pip \
+    pipx \
     && rm -rf /var/lib/apt/lists/*
 
 # Accept build argument for user ID
@@ -28,11 +32,18 @@ WORKDIR /home/${USER_NAME}/repos
 # Install Claude Code using native installer (handles auto-updates)
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Add Claude to PATH
-ENV PATH="/home/${USER_NAME}/.local/bin:${PATH}"
+# Add Claude, local bins and cargo to PATH
+ENV PATH="/home/${USER_NAME}/.local/bin:/home/${USER_NAME}/.cargo/bin:${PATH}"
 
 # Create repos directory
 RUN mkdir -p /home/${USER_NAME}/repos
+
+# Install pyright LSP
+RUN pipx install pyright
+
+# Install Rust + rust-analyzer LSP
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && ~/.cargo/bin/rustup component add rust-analyzer
 
 # Keep container running
 CMD ["tail", "-f", "/dev/null"]
