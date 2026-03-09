@@ -116,7 +116,13 @@ checkPackages() {
 	# Install Python CLI tools via pipx (isolated environments)
 	pipx install autopep8
 	pipx install isort
-	pipx install cppman
+
+	# Go (both modes - needed for lazydocker and other Go tools)
+	GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
+	curl -L -o /tmp/go.tar.gz "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz"
+	sudo tar -C /usr/local -xzf /tmp/go.tar.gz
+	rm /tmp/go.tar.gz
+	export PATH="/usr/local/go/bin:$PATH"
 
 	# Rust and Cargo (both modes - needed for tree-sitter, asm-lsp, and alacritty)
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -216,24 +222,7 @@ installShell() {
 	git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 	~/.fzf/install
 
-	cd /tmp
-	LOCATION=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/eza-community/eza/releases/download/[^"]+eza_x86_64-unknown-linux-gnu\.tar\.gz"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o eza.tar.gz "$LOCATION"
-	tar -xzf eza.tar.gz
-	sudo mv ./eza /usr/local/bin/
-
-	# Install completions if available
-	COMP_URL=$(curl -s https://api.github.com/repos/eza-community/eza/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/eza-community/eza/releases/download/[^"]+completions-[^"]+\.tar\.gz"' |
-		awk -F'"' '{ print $4 }')
-	if [ -n "$COMP_URL" ]; then
-		curl -L -o completions.tar.gz "$COMP_URL"
-		tar -xzf completions.tar.gz
-		sudo mkdir -p /usr/local/share/zsh/site-functions
-		sudo mv ./target/completions-*/eza /usr/local/share/zsh/site-functions/_eza 2>/dev/null || true
-	fi
+	cargo install eza
 }
 
 installCommonTools() {
@@ -253,23 +242,8 @@ installCommonTools() {
 	rm neovim.tar.gz
 	sudo ln -sf /opt/neovim/bin/nvim /usr/local/bin/nvim
 
-	# Install batcat (keep as .deb)
-	cd /tmp
-	LOCATION=$(curl -s https://api.github.com/repos/sharkdp/bat/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/sharkdp/bat/releases/download/[^"]+bat_[^"]+_amd64\.deb"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o batcat.deb "$LOCATION"
-	sudo dpkg -i batcat.deb
-	rm batcat.deb
-
-	# Install ripgrep (keep as .deb)
-	cd /tmp
-	LOCATION=$(curl -s https://api.github.com/repos/BurntSushi/ripgrep/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/BurntSushi/ripgrep/releases/download/[^"]+ripgrep_[^"]+_amd64\.deb"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o ripgrep.deb "$LOCATION"
-	sudo dpkg -i ripgrep.deb
-	rm ripgrep.deb
+	cargo install bat
+	cargo install ripgrep
 }
 
 installExtras() {
@@ -290,26 +264,9 @@ installExtras() {
 	rm ghidra.zip
 	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
 
-	# Install git-delta binary
-	cd /tmp
-	LOCATION=$(curl -s https://api.github.com/repos/dandavison/delta/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/dandavison/delta/releases/download/[^"]+delta-[^"]+-x86_64-unknown-linux-gnu\.tar\.gz"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o delta.tar.gz "$LOCATION"
-	tar -xzf delta.tar.gz
-	sudo mv delta-*/delta /usr/local/bin/
-	rm -rf delta-*
-	rm delta.tar.gz
+	cargo install git-delta
 
-	# Install lazydocker
-	cd /tmp
-	LOCATION=$(curl -s https://api.github.com/repos/jesseduffield/lazydocker/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/jesseduffield/lazydocker/releases/download/[^"]+lazydocker_[^"]+_Linux_x86_64\.tar\.gz"' |
-		awk -F'"' '{ print $4 }')
-	curl -L -o lazydocker.tar.gz "$LOCATION"
-	tar -xzf lazydocker.tar.gz lazydocker
-	sudo mv lazydocker /usr/local/bin/
-	rm lazydocker.tar.gz
+	go install github.com/jesseduffield/lazydocker@latest
 }
 
 installPlugins() {
@@ -608,21 +565,6 @@ importCFG() {
 	# Set RTC to local time (for dual-boot)
 	timedatectl set-local-rtc 1
 
-	# Cache cppman pages for offline use (LAST STEP - takes 1+ hours)
-	echo ""
-	echo "[!] ============================================================"
-	echo "[!] FINAL STEP: Caching cppman pages for offline use"
-	echo "[!] WARNING: This step takes 1+ hours to download all C++ documentation"
-	echo "[!] ============================================================"
-	echo ""
-	read -r -p "[?] Cache cppman pages now? (y/n): " cache_cppman
-	if [[ "$cache_cppman" =~ ^[Yy]$ ]]; then
-		echo "[+] Caching cppman pages... This will take a while. You can Ctrl+C to skip."
-		cppman -c || echo "[!] cppman caching failed or was interrupted"
-		echo "[+] cppman caching complete!"
-	else
-		echo "[!] Skipping cppman cache. You can cache later with: cppman -c"
-	fi
 }
 
 echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
