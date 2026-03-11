@@ -13,10 +13,9 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 export LANG=en_US.UTF-8
-TEXLIVE_BIN="$(command ls -d /usr/local/texlive/*/bin/x86_64-linux 2>/dev/null | sort -V | tail -n1)"
 # Load Rust/Cargo environment (installed via rustup)
 [[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
-export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:${TEXLIVE_BIN}:/usr/local/go/bin:$HOME/go/bin:$PATH"
+export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:/usr/local/go/bin:$HOME/go/bin:$PATH"
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
 export MAKEFLAGS="-j$(nproc)"
 # Detect bat/batcat binary (Ubuntu 24.04+ uses 'bat', older uses 'batcat')

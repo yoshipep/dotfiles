@@ -357,14 +357,8 @@ importCFG() {
 		mkdir -p patches
 		cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
 
-		# Install TeX Live (provides texinfo needed for GDB build)
-		mkdir -p /tmp/tex
-		cp "$REPO_DIR/dotfiles/texlive.profile" /tmp/tex/
-		cd /tmp
-		wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
-		tar -xf install-tl-unx.tar.gz -C ./tex --strip-components=1
-		cd tex
-		sudo perl ./install-tl -profile texlive.profile
+		# Install TeX Live
+		$INSTALL texlive-full
 
 		# Build GDB from source with patches and multi-arch support
 		sudo mkdir -p /opt/gdb
