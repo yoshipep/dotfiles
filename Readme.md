@@ -11,11 +11,11 @@ Complete development environment for personal systems:
 - **Shell**: zsh, oh-my-zsh, powerlevel10k
 - **Terminal**: alacritty, tmux, tmuxinator
 - **Editor**: Neovim with LSP, treesitter, and 8 themes
-- **Development**: GDB (custom build), Ghidra, Docker, VirtualBox, meld, cppman
+- **Development**: GDB (custom build), Ghidra, Docker, VirtualBox
 - **Network**: Custom firewall with VM isolation, static IP, system services
 - **Tools**: batcat, ripgrep, git-delta, lazydocker, tree-sitter, asm-lsp and many more
 - **Python**: virtualenvwrapper, autopep8, isort
-- **Build**: Rust/Cargo, Node.js, TeX Live, OpenJDK, bash-language-server
+- **Build**: Rust/Cargo, Go, Node.js, TeX Live, OpenJDK, bash-language-server
 
 ### MINIMAL Mode
 
@@ -24,8 +24,8 @@ Essential dotfiles for corporate/restricted environments:
 - **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
 - **Terminal**: alacritty, tmux, tmuxinator
 - **Editor**: Neovim with LSP, treesitter, and 8 themes
-- **Tools**: batcat, ripgrep, tree-sitter, clangd, clang-format, shellcheck, cppman, asm-lsp
-- **Build**: Rust/Cargo (for tree-sitter & asm-lsp), Node.js (for CoC)
+- **Tools**: batcat, ripgrep, tree-sitter, clangd, clang-format, shellcheck, asm-lsp
+- **Build**: Rust/Cargo (for tree-sitter, asm-lsp & alacritty), Go, Node.js (for CoC)
 
 **Skips**: GDB build, Docker, Ghidra, VirtualBox, firewall, TeX Live, system services, git-delta, lazydocker, KeePassXC, meld, ipython3, virtualenvwrapper
 
@@ -173,5 +173,5 @@ $HOME/
 - **Terminal**: Alacritty configured with Agave Nerd Font, launches tmux by default
 - **Neovim LSP**: clangd (C/C++), pyright (Python), bash-language-server (Bash), asm-lsp (Assembly)
 - **Treesitter**: Enabled for better syntax highlighting in 15+ languages
-- **cppman**: C++ documentation with offline mode (cache with `cppman -c`)
 - **Assembly Support**: asm-lsp with ARM and x86/x86-64 support (configure per-project with `.asm-lsp.toml`)
+- **Neovim sessions**: vim-obsession — open nvim first, start recording, then use `nvim -S` to restore

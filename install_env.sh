@@ -149,7 +149,6 @@ checkPackages() {
 		$INSTALL perl
 		$INSTALL gawk
 		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
-		$INSTALL meld
 		$INSTALL python3-virtualenvwrapper
 		$INSTALL ipython3
 		$INSTALL socat
