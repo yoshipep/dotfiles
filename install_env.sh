@@ -100,7 +100,9 @@ checkPackages() {
 	$INSTALL htop
 	$INSTALL clangd
 	$INSTALL clang-format
+	$INSTALL wl-clipboard
 	$INSTALL xclip
+	$INSTALL flameshot
 	$INSTALL shellcheck
 	$INSTALL tmux
 	$INSTALL tmuxinator

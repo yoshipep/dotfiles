@@ -6,8 +6,9 @@
 nnoremap <F5> :e <CR>                  " Refresh current file
 nnoremap <C-S> :w <CR>                 " Write current file
 nnoremap <C-X> :q <CR>                 " Quit VIM
-nnoremap <C-N> :enew <CR>              " Open new buffer
+nnoremap <C-n> :enew<CR>
 nnoremap <M-w> :bwipeout <CR>          " Close current buffer
+nnoremap <M-W> :bwipeout!<CR>          " Close current buffer, discard changes
 
 " --- Configuration ---
 nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR> " Edit init.vim and cd to its directory
@@ -63,8 +64,8 @@ nnoremap <silent> <C-A> :Neotree toggle<CR>
 nnoremap <silent> <C-G> :Neotree reveal<CR>
 
 " --- Commentary ---
-nnoremap <leader>/ :Commentary<CR>
-vnoremap <leader>/ :Commentary<CR>
+nnoremap <space>/ :Commentary<CR>
+vnoremap <space>/ :Commentary<CR>
 
 " --- Documentation Generator (Doge) ---
 nmap <silent> <Leader>d <Plug>(doge-generate)

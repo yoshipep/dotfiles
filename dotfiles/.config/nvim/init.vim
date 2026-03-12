@@ -104,6 +104,8 @@ func! s:my_colors_setup() abort
   highlight CocMenuSel ctermbg=208 ctermfg=235 cterm=bold,underline guibg=#ff8700 guifg=#282828 gui=bold,underline
   " Standard Vim popup menu selection
   highlight PmenuSel ctermbg=208 ctermfg=235 cterm=bold guibg=#ff8700 guifg=#282828 gui=bold
+  " Darken inactive preprocessor regions (#ifdef blocks that won't compile)
+  highlight CocInactiveRegion ctermfg=243 guifg=#666666
 endfunc
 
 augroup colorscheme_coc_setup | au!
@@ -119,6 +121,8 @@ augroup END
 source ~/.config/nvim/functions.vim
 source ~/.config/nvim/autocommands.vim
 source ~/.config/nvim/keybindings.vim
+
+lua require('inactive_regions')
 
 " Plugin-specific configurations
 source ~/.config/nvim/plugins.conf/coc.vim

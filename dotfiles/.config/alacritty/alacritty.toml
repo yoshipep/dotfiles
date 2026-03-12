@@ -56,6 +56,8 @@ bindings = [
   { key = "R", mods = "Super|Shift", chars = "\uE020" },
   # New session
   { key = "S", mods = "Control|Shift", chars = "\uE030" },
+  { key = "Left",  mods = "Alt|Shift", chars = "\uE040" },
+  { key = "Right", mods = "Alt|Shift", chars = "\uE041" },
 ]
 
 [hints]
