@@ -71,8 +71,8 @@ vnoremap <space>/ :Commentary<CR>
 nmap <silent> <Leader>d <Plug>(doge-generate)
 
 " --- LaTeX ---
-nnoremap <F2> :set spelllang=en_us<CR>
-nnoremap <F3> :set spelllang=es_es<CR>
+nnoremap <F2> :set spelllang=en_us<CR>:call coc#config('ltex.language', 'en-US')<CR>
+nnoremap <F3> :set spelllang=es_es<CR>:call coc#config('ltex.language', 'es')<CR>
 nnoremap <leader>c <Plug>(vimtex-compile)
 nnoremap <leader>v :VimtexView<CR>
 
