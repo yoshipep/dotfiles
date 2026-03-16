@@ -35,7 +35,7 @@ IncludeCategories:
     Priority: 2
   - Regex: ".*"
     Priority: 3
-IncludeIsMainRegex: "(Test)?$"
+IncludeIsMainRegex: "^$"
 IndentCaseLabels: false
 IndentGotoLabels: false
 IndentWidth: 8
@@ -45,6 +45,7 @@ PointerAlignment: Right
 ReflowComments: false
 SortUsingDeclarations: LexicographicNumeric
 SpaceBeforeParens: ControlStatementsExceptForEachMacros
+SpacesInContainerLiterals: true
 Standard: c++11
 TabWidth: 8
 UseTab: Never
