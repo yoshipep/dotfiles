@@ -392,6 +392,7 @@ importCFG() {
 	# STAGE 4: Common dotfiles (both modes - after plugin setup)
 	# ============================================================================
 	cd "$HOME"
+	cp "$REPO_DIR/dotfiles/.zshenv" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.p10k.zsh" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.gitconfig" "$HOME/"

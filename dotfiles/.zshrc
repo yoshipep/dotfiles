@@ -12,12 +12,7 @@ plugins=(
 )
 
 source $ZSH/oh-my-zsh.sh
-export LANG=en_US.UTF-8
-# Load Rust/Cargo environment (installed via rustup)
-[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
-export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:/usr/local/go/bin:$HOME/go/bin:$PATH"
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
-export MAKEFLAGS="-j$(nproc)"
 # Detect bat/batcat binary (Ubuntu 24.04+ uses 'bat', older uses 'batcat')
 if command -v batcat &> /dev/null; then
 	BAT_CMD="batcat"
@@ -27,9 +22,6 @@ else
 	BAT_CMD="cat"
 fi
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
-export WORKON_HOME="$HOME/.virtualenvs"
-export CMAKE_EXPORT_COMPILE_COMMANDS=ON
-export EDITOR="/opt/neovim/bin/nvim"
 # Load virtualenvwrapper if installed (FULL mode only)
 [[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
 alias cat="$BAT_CMD"
