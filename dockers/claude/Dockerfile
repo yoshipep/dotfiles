@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     bash \
     ca-certificates \
     sudo \
+    poppler-utils \
     clangd \
     python3 \
     python3-pip \

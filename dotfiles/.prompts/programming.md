@@ -358,7 +358,18 @@ follow the next ones
   ```
 
 - For nested namespaces is allowed to import the root one and then use it like the previous rule
-- Avoid the use of auto at all. Or use it for small trivial functions, or in places you think is coherent
+- Use `auto` when the type is already visible on the same line or is unwritable:
+  - Iterators: `auto it = map.find(key);`
+  - Casts: `auto *ptr = static_cast<Foo *>(raw);`
+  - Range-based for: `for (uintptr_t addr : pages)` (scalars spell the type, composites use `auto &` if modified, `const auto &` otherwise)
+  - Lambdas: `auto callback = [](int32_t x) { return x * 2; };`
+  - make_unique/make_optional: `auto ptr = std::make_unique<Foo>();`
+  - Structured bindings: `auto [fd, error] = open_connection();`
+
+  Spell the type explicitly when it's not obvious from context:
+  - `std::optional<Foo> result = find_user(id);`
+  - `std::vector<uintptr_t> vec(size);`
+  - `uintptr_t addr = get_addr();`
 - Use C++ casts instead of C-style casts. For example:
 
   ```cpp

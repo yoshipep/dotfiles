@@ -78,34 +78,10 @@ do_flush_all_chains() {
     echo '0' > /etc/.fw_docker_status
 }
 
-# Set default policy to ACCEPT (firewall disabled, all traffic allowed)
-def_policy_accept() {
-    ${IPTABLES} -F
-    ${IPTABLES} -P INPUT ACCEPT
-    ${IPTABLES} -P OUTPUT ACCEPT
-    ${IPTABLES} -P FORWARD ACCEPT
-    echo '1' > /etc/.fw_host_status
-    echo '1' > /etc/.fw_docker_status
-}
-
-# Set default policy to DROP (firewall enabled, deny by default)
-def_policy_drop() {
-    ${IPTABLES} -F
-    ${IPTABLES} -P INPUT DROP
-    ${IPTABLES} -P OUTPUT DROP
-    ${IPTABLES} -P FORWARD DROP
-    echo '0' > /etc/.fw_host_status
-    echo '0' > /etc/.fw_docker_status
-}
-
-# Enable network access for the host PC only (web browsing, DNS)
+# Enable network access for the host PC (temporary unrestricted outbound access)
 do_enable_host_net() {
-    # Allow all NEW outbound connections from the host
+    # Allow host to open NEW connections to any destination (ssh, apt, web, etc.)
     append_rule "OUTPUT -s ${PC} -m conntrack --ctstate NEW -j ACCEPT"
-
-    # Allow specific outbound web and DNS traffic (redundant with above, but kept for clarity)
-    append_rule "OUTPUT -p tcp -s ${PC} --match multiport --dports ${HOST_PORTS} -j ACCEPT"
-    append_rule "OUTPUT -p udp -s ${PC} --match multiport --dports ${DNS_PORT},${HTTPS_PORT} -j ACCEPT"
 
     # Remove the TCP reject fallback rule to allow connections through
     remove_rule 'INPUT -p tcp -j REJECT --reject-with tcp-reset'
@@ -114,10 +90,8 @@ do_enable_host_net() {
 
 # Disable network access for the host PC only (lock down to minimal access)
 do_disable_host_net() {
-    # Revert rules from do_enable_host_net
+    # Revert rule from do_enable_host_net
     remove_rule "OUTPUT -s ${PC} -m conntrack --ctstate NEW -j ACCEPT"
-    remove_rule "OUTPUT -p tcp -s ${PC} --match multiport --dports ${HOST_PORTS} -j ACCEPT"
-    remove_rule "OUTPUT -p udp -s ${PC} --match multiport --dports ${DNS_PORT},${HTTPS_PORT} -j ACCEPT"
 
     # Re-add the TCP reject fallback rule for better connection refusal behavior
     append_rule 'INPUT -p tcp -j REJECT --reject-with tcp-reset'
@@ -207,7 +181,6 @@ do_start() {
     # Allow ESTABLISHED and RELATED connections (return traffic for existing connections)
     append_rule "INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
-    append_rule "FORWARD -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Drop all incoming connection attempts (this is a client-only host)
     append_rule "INPUT -p tcp --syn -j DROP"
@@ -217,6 +190,17 @@ do_start() {
     # INSERT these rules at the top so they come before Docker's own rules
     insert_rule "FORWARD -i docker+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
     insert_rule "FORWARD -i br-+ -o ${WAN_IFACE} -m conntrack --ctstate NEW -j DROP"
+
+    # -- VM ISOLATION --
+    # VMs on different virtual networks are not allowed to communicate with each other.
+    # Cross-network forwarding is explicitly blocked here rather than relying solely on
+    # the default DROP policy, so isolation holds regardless of policy changes.
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WEB_IFACE} -j DROP"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${DEVELOP_IFACE} -j DROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${MAIL_IFACE} -j DROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${DEVELOP_IFACE} -j DROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${MAIL_IFACE} -j DROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WEB_IFACE} -j DROP"
 
     # -- VM FORWARDING RULES --
     # Allow Mail VMs to initiate outbound connections to specific ports (IMAP/SMTP)
@@ -229,7 +213,7 @@ do_start() {
     append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${CLAUDE_VM} --match multiport --dports ${CLAUDE_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${WEB_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
-    # Allow Development VM to initiate outbound SSH connections
+    # Allow Development VM to initiate outbound connections to HTTP/HTTPS ports (apt, package updates)
     append_rule "FORWARD -p tcp -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -s ${OSDEV_VM} --match multiport --dports ${OSDEV_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${DEVELOP_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
@@ -239,21 +223,21 @@ do_start() {
 
     # Mail VMs DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${MAIL_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -p udp -s ${IONOS_VM} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "FORWARD -i ${MAIL_IFACE} -p udp -s ${IONOS_VM} --dport ${DNS_PORT} -j ACCEPT"
     append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${IONOS_VM} -j MASQUERADE"
-    append_rule "FORWARD -p udp -s ${GMAIL_VM} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "FORWARD -i ${MAIL_IFACE} -p udp -s ${GMAIL_VM} --dport ${DNS_PORT} -j ACCEPT"
     append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${GMAIL_VM} -j MASQUERADE"
 
     # Web VMs DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${WEB_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -p udp -s ${WEB_VM} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "FORWARD -i ${WEB_IFACE} -p udp -s ${WEB_VM} --dport ${DNS_PORT} -j ACCEPT"
     append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${WEB_VM} -j MASQUERADE"
-    append_rule "FORWARD -p udp -s ${CLAUDE_VM} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "FORWARD -i ${WEB_IFACE} -p udp -s ${CLAUDE_VM} --dport ${DNS_PORT} -j ACCEPT"
     append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${CLAUDE_VM} -j MASQUERADE"
 
     # Development VM DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${DEVELOP_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -p udp -s ${OSDEV_VM} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -p udp -s ${OSDEV_VM} --dport ${DNS_PORT} -j ACCEPT"
     append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${OSDEV_VM} -j MASQUERADE"
 
     # NAT for all outbound WAN traffic from VMs
@@ -322,16 +306,8 @@ case "$1" in
         eval "echo '[+] Firewall: WARNING! Flushing all IPTables chains. Some services may be broken or need a restart (i.e.: docker)' $SILENT"
         do_flush_all_chains
         ;;
-    enable)
-        eval "echo '[+] Firewall: Changed default policy to DROP!' $SILENT"
-        def_policy_drop
-        ;;
-    disable)
-        eval "echo '[!] Firewall: Changed default policy to ACCEPT!' $SILENT"
-        def_policy_accept
-        ;;
     *)
-        echo "Usage: $0 start|restart|enable-net|disable-net|enable-docker-net|disable-docker-net|flush|enable|disable" >&2
+        echo "Usage: $0 start|restart|enable-net|disable-net|enable-docker-net|disable-docker-net|flush" >&2
         exit 1
         ;;
 esac
