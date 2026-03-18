@@ -398,7 +398,12 @@ importCFG() {
 	cp "$REPO_DIR/dotfiles/.gitconfig" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.clang-format" "$HOME/"
 	cp -r "$REPO_DIR/dotfiles/.ssh" "$HOME/" 2>/dev/null || echo "SSH config skipped"
-	cp -r "$REPO_DIR/dotfiles/.prompts" "$HOME/.prompts/"
+	mkdir -p "$HOME/.claude/agents/voltagent"
+	cp "$REPO_DIR/dotfiles/.claude/statusline.sh" "$HOME/.claude/"
+	cp "$REPO_DIR/dotfiles/.claude/settings.json" "$HOME/.claude/"
+	cp "$REPO_DIR/dotfiles/.claude/programming.md" "$HOME/.claude/"
+	cp "$REPO_DIR/dotfiles/.claude/agents/"*.md "$HOME/.claude/agents/"
+	cp "$REPO_DIR/dotfiles/.claude/agents/voltagent/"*.md "$HOME/.claude/agents/voltagent/"
 	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
 	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
 

@@ -56,3 +56,5 @@ alias lzd='lazydocker'
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 fpath+=${ZDOTDIR:-~}/.zsh_functions
+
+bindkey '^U' backward-kill-line

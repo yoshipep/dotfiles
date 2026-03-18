@@ -165,6 +165,11 @@ EOF
 " --- gitsigns.nvim ---
 lua << EOF
 require("gitsigns").setup({
+  on_attach = function(bufnr)
+    local bufname = vim.api.nvim_buf_get_name(bufnr)
+    -- Do not attach to git special buffers (COMMIT_EDITMSG, MERGE_MSG, etc.)
+    if bufname:match('%.git/') then return false end
+  end,
   signs = {
     add          = { text = '+' },
     change       = { text = '┃' },

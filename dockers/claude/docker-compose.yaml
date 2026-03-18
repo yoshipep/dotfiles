@@ -16,8 +16,10 @@ services:
     volumes:
       # Mount the host repos directory to the container
       - ~/repos:/home/claude/repos
-      # Mount host agents directory so custom agents are available in the container
+      # Mount Claude Code configuration from host
       - ~/.claude/agents:/home/claude/.claude/agents
+      - ~/.claude/statusline.sh:/home/claude/.claude/statusline.sh
+      - ~/.claude/settings.json:/home/claude/.claude/settings.json
       # Optionally persist Claude Code configuration
       - claude-config:/home/claude/.config
     stdin_open: true

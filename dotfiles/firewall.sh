@@ -206,15 +206,18 @@ do_start() {
     # Allow Mail VMs to initiate outbound connections to specific ports (IMAP/SMTP)
     append_rule "FORWARD -p tcp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${IONOS_VM} --match multiport --dports ${IONOS_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -p tcp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${GMAIL_VM} --match multiport --dports ${GMAIL_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${MAIL_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Allow Web VM to initiate outbound connections to HTTP/HTTPS ports
     append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${WEB_VM} --match multiport --dports ${WEB_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${CLAUDE_VM} --match multiport --dports ${CLAUDE_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${WEB_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Allow Development VM to initiate outbound connections to HTTP/HTTPS ports (apt, package updates)
     append_rule "FORWARD -p tcp -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -s ${OSDEV_VM} --match multiport --dports ${OSDEV_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${DEVELOP_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # -- DNS FORWARDING FOR VMs --

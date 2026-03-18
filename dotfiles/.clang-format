@@ -3,7 +3,7 @@ AccessModifierOffset: -4
 AlignEscapedNewlines: Left
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: None
-BreakTemplateDeclarations: Yes
+AlwaysBreakTemplateDeclarations: Yes
 BraceWrapping:
   AfterClass: false
   AfterControlStatement: false
