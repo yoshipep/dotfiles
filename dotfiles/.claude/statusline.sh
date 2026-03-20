@@ -3,7 +3,7 @@
 DATA=$(cat)
 
 MODEL=$(echo "$DATA" | grep -oP '"display_name"\s*:\s*"\K[^"]+' 2>/dev/null)
-USED_PCT=$(echo "$DATA" | grep -oP '"used_percentage"\s*:\s*\K\d+' 2>/dev/null | head -1)
+REM_PCT=$(echo "$DATA" | grep -oP '"remaining_percentage"\s*:\s*\K\d+' 2>/dev/null | head -1)
 
 BRANCH=$(git branch --show-current 2>/dev/null)
 DIRTY=$(git status --porcelain 2>/dev/null | wc -l)
@@ -20,16 +20,16 @@ RED='\033[38;2;251;73;52m'
 GRAY='\033[38;2;146;131;116m'
 RESET='\033[0m'
 
-if [ "${USED_PCT}" -ge 80 ] 2>/dev/null; then
+if [ "${REM_PCT}" -le 20 ] 2>/dev/null; then
     CTX_COLOR=$RED
-elif [ "${USED_PCT}" -ge 60 ] 2>/dev/null; then
+elif [ "${REM_PCT}" -le 40 ] 2>/dev/null; then
     CTX_COLOR=$ORANGE
 else
     CTX_COLOR=$GREEN
 fi
 
 OUT="${BLUE}${MODEL}${RESET}"
-OUT+=" ${GRAY}│${RESET} ctx: ${CTX_COLOR}${USED_PCT}%${RESET}"
+OUT+=" ${GRAY}│${RESET} ctx: ${CTX_COLOR}${REM_PCT}%${RESET}"
 OUT+=" ${GRAY}│${RESET} "
 
 if [ -n "$BRANCH" ]; then
