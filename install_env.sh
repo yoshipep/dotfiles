@@ -2,7 +2,16 @@
 
 INSTALL="sudo apt install -y"
 
+# Detect distro (ubuntu or debian)
+DISTRO=$(. /etc/os-release && echo "$ID")
+
+# Verify sudo is available
+
 removeSnap() {
+	if [[ "$DISTRO" != "ubuntu" ]]; then
+		echo "[*] Snap not present on $DISTRO, skipping."
+		return
+	fi
 	echo "[!] Do you want to remove snap from the system?"
 	echo "    This will remove all snap packages, snapd, and prevent reinstallation."
 	read -p "    Remove snap? (y/N): " -n 1 -r
@@ -84,40 +93,48 @@ checkPackages() {
 	cd "$HOME"
 	echo "[!] Installing required packages..."
 
-	# Common packages (both modes)
-	$INSTALL software-properties-common
-	sudo add-apt-repository -y ppa:git-core/ppa
+	# Add repos/PPAs before apt update
+	if [[ "$DISTRO" == "ubuntu" ]]; then
+		$INSTALL software-properties-common
+		sudo add-apt-repository -y ppa:git-core/ppa
+		if [[ "$MODE" == "full" ]]; then
+			sudo add-apt-repository -y ppa:phoerious/keepassxc
+		fi
+	fi
 	sudo apt update
 	sudo apt upgrade -y
-	$INSTALL build-essential
-	$INSTALL git
-	$INSTALL curl
-	$INSTALL wget
-	$INSTALL python3-pip
-	$INSTALL pipx
-	$INSTALL "python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
-	$INSTALL python3-pynvim
-	$INSTALL htop
-	$INSTALL clangd
-	$INSTALL clang-format
-	$INSTALL wl-clipboard
-	$INSTALL xclip
-	$INSTALL flameshot
-	$INSTALL shellcheck
-	$INSTALL tmux
-	$INSTALL tmuxinator
-	$INSTALL libssl-dev
-	$INSTALL pkg-config
-	# Alacritty build dependencies
-	$INSTALL cmake
-	$INSTALL libfreetype-dev
-	$INSTALL libfontconfig1-dev
-	$INSTALL libxcb-xfixes0-dev
-	$INSTALL libxkbcommon-dev
+
+	# All apt packages in one call
+	local PYTHON_VENV="python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
+	local COMMON_PKGS=(
+		build-essential git curl wget
+		python3-pip pipx "$PYTHON_VENV" python3-pynvim
+		htop clangd clang-format libclang-dev
+		wl-clipboard xclip flameshot
+		shellcheck tmux tmuxinator universal-ctags
+		libssl-dev pkg-config
+		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
+	)
+
+	if [[ "$MODE" == "full" ]]; then
+		local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
+		local FULL_PKGS=(
+			keepassxc perl gawk socat
+			python3-virtualenvwrapper ipython3
+			libmpfr-dev libgmp-dev libmpc-dev
+			flex bison autoconf automake
+			libreadline-dev libncurses-dev python3-dev
+			libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
+			ulogd2 ca-certificates
+			"$openjdk"
+		)
+		$INSTALL "${COMMON_PKGS[@]}" "${FULL_PKGS[@]}"
+	else
+		$INSTALL "${COMMON_PKGS[@]}"
+	fi
 
 	# Install Python CLI tools via pipx (isolated environments)
-	pipx install autopep8
-	pipx install isort
+	pipx install autopep8 isort
 
 	# Go (both modes - needed for lazydocker and other Go tools)
 	GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
@@ -139,69 +156,36 @@ checkPackages() {
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
-	npm i -g neovim
 
 	if [[ "$MODE" == "full" ]]; then
 		echo "[+] Installing FULL mode packages..."
 
-		# Full mode additional packages
-		sudo add-apt-repository -y ppa:phoerious/keepassxc
-		sudo apt update
-		$INSTALL keepassxc
-		$INSTALL perl
-		$INSTALL gawk
+		npm i -g neovim yarn bash-language-server prettier
+
+		# VirtualBox setup (separate: requires repo before install)
 		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
-		$INSTALL python3-virtualenvwrapper
-		$INSTALL ipython3
-		$INSTALL socat
-
-		# GDB build dependencies
-		$INSTALL libmpfr-dev
-		$INSTALL libgmp-dev
-		$INSTALL libmpc-dev
-		$INSTALL flex
-		$INSTALL bison
-		$INSTALL autoconf
-		$INSTALL automake
-		$INSTALL pkg-config
-		$INSTALL libreadline-dev
-		$INSTALL libncurses-dev
-		$INSTALL python3-dev
-		$INSTALL libexpat-dev
-		$INSTALL zlib1g-dev
-		$INSTALL libbabeltrace-dev
-		$INSTALL libipt-dev
-
-		# Java for Ghidra
-		local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
-		$INSTALL "$openjdk"
-
-		# Additional npm packages
-		npm i -g yarn
-		npm i -g bash-language-server
-		npm i -g prettier
-
-		# Docker setup
-		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
+		# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
+		VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+		[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
+		echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
+			sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
 		sudo apt update
-		$INSTALL ca-certificates
+		VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
+		$INSTALL "$VB_PKG"
+
+		# Docker setup (separate: requires repo before install)
+		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
 		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+		sudo curl -fsSL "https://download.docker.com/linux/${DISTRO}/gpg" -o /etc/apt/keyrings/docker.asc
 		sudo chmod a+r /etc/apt/keyrings/docker.asc
 		echo \
-		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DISTRO} \
 		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
 		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 		sudo apt update
 		$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 		sudo usermod -a -G docker "$USER"
 
-		# Firewall logging
-		$INSTALL ulogd2
-
-		# Remove unwanted packages
-		sudo apt remove -y cups-client cups-common ufw 2>/dev/null
-		sudo apt autoremove -y
 	else
 		echo "[+] Installing MINIMAL mode packages..."
 		# Minimal mode skips: Docker, VirtualBox, Ghidra deps, GDB build deps, firewall tools
@@ -250,6 +234,8 @@ installCommonTools() {
 installExtras() {
 	echo "[!] Installing: ghidra, git-delta, lazydocker"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
+	source "$HOME/.cargo/env"
+	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
 	cd /tmp
 
 	# Install Ghidra to /opt
@@ -309,6 +295,42 @@ selectTheme() {
 	echo "    You can change it later by editing ~/.vim_theme"
 }
 
+setupAlacritty() {
+	echo "[!] Setting up Alacritty desktop integration..."
+
+	# Create .desktop file so DE can launch it
+	mkdir -p "$HOME/.local/share/applications"
+	cat > "$HOME/.local/share/applications/alacritty.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+TryExec=alacritty
+Exec=alacritty
+Icon=alacritty
+Terminal=false
+Categories=System;TerminalEmulator;
+Name=Alacritty
+GenericName=Terminal
+Comment=A fast, cross-platform, OpenGL terminal emulator
+StartupNotify=true
+EOF
+
+	# Set Ctrl+Alt+T shortcut based on desktop environment
+	local DE="${XDG_CURRENT_DESKTOP,,}"
+	case "$DE" in
+		gnome|ubuntu|pop)
+			echo "[+] Configuring GNOME shortcut..."
+			local KB_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
+			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['${KB_PATH}']"
+			dconf write "${KB_PATH}name" "'Alacritty'"
+			dconf write "${KB_PATH}command" "'alacritty'"
+			dconf write "${KB_PATH}binding" "'<Ctrl><Alt>t'"
+			;;
+		*)
+			echo "[*] DE '$XDG_CURRENT_DESKTOP' not configured — set Ctrl+Alt+T shortcut manually to: alacritty"
+			;;
+	esac
+}
+
 installFont() {
 	echo "Installing: Agave font from nerd-fonts"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
@@ -333,9 +355,6 @@ importCFG() {
 	cd "$HOME"
 	mkdir -p projects
 	mkdir -p repos
-
-	# Install universal-ctags from apt (both modes)
-	$INSTALL universal-ctags
 
 	# ============================================================================
 	# STAGE 1: Neovim config (required early for plugin setup)
@@ -367,7 +386,9 @@ importCFG() {
 		cd /opt/gdb
 		git clone https://sourceware.org/git/binutils-gdb.git .
 		git apply "$HOME/patches/gdb.patch"
-		./configure --enable-targets=all
+		./configure --enable-targets=all \
+			--disable-binutils --disable-ld --disable-gold \
+			--disable-gas --disable-gprof --disable-sim
 		make -j "$(nproc)"
 		sudo make install
 
@@ -406,6 +427,7 @@ importCFG() {
 	cp "$REPO_DIR/dotfiles/.claude/agents/voltagent/"*.md "$HOME/.claude/agents/voltagent/"
 	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
 	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
+	setupAlacritty
 
 	if [[ "$MODE" != "full" ]]; then
 		echo "[+] MINIMAL installation complete!"
@@ -563,8 +585,11 @@ importCFG() {
 	sudo systemctl start firewall.service
 	sudo systemctl start ulogd2.service
 
-	# Set RTC to local time (for dual-boot)
-	timedatectl set-local-rtc 1
+	echo "[*] NOTE: If dual-booting with Windows, run: sudo timedatectl set-local-rtc 1"
+
+	# Cleanup unwanted packages
+	sudo apt remove -y cups-client cups-common ufw imagemagick 'libreoffice*' 2>/dev/null
+	sudo apt autoremove -y
 
 }
 

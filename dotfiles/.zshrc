@@ -13,14 +13,7 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
-# Detect bat/batcat binary (Ubuntu 24.04+ uses 'bat', older uses 'batcat')
-if command -v batcat &> /dev/null; then
-	BAT_CMD="batcat"
-elif command -v bat &> /dev/null; then
-	BAT_CMD="bat"
-else
-	BAT_CMD="cat"
-fi
+BAT_CMD="bat"
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
 # Load virtualenvwrapper if installed (FULL mode only)
 [[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
