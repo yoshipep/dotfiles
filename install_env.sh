@@ -386,7 +386,10 @@ importCFG() {
 		cd /opt/gdb
 		git clone https://sourceware.org/git/binutils-gdb.git .
 		git apply "$HOME/patches/gdb.patch"
-		./configure --enable-targets=all \
+		CFLAGS="-O2" ./configure --enable-targets=all \
+			--with-system-readline \
+			--with-python=/usr/bin/python3 \
+			--enable-gdbserver \
 			--disable-binutils --disable-ld --disable-gold \
 			--disable-gas --disable-gprof --disable-sim
 		make -j "$(nproc)"
@@ -588,7 +591,7 @@ importCFG() {
 	echo "[*] NOTE: If dual-booting with Windows, run: sudo timedatectl set-local-rtc 1"
 
 	# Cleanup unwanted packages
-	sudo apt remove -y cups-client cups-common ufw imagemagick 'libreoffice*' 2>/dev/null
+	sudo apt remove -y cups-client cups-common ufw imagemagick 'libreoffice*' gdb gdb-multiarch 2>/dev/null
 	sudo apt autoremove -y
 
 }
