@@ -16,10 +16,8 @@
 	line-numbers = true
 [merge]
 	conflictstyle = diff3
-	tool = nvimdiff
 [diff]
 	colorMoved = default
 	algorithm = histogram
-	tool = nvimdiff
 [init]
 	defaultBranch = master
