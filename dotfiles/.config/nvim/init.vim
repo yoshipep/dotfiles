@@ -39,7 +39,9 @@ Plug 'navarasu/onedark.nvim'
 Plug 'Mofiqul/vscode.nvim'
 Plug 'Dracula/vim', { 'as': 'dracula' }
 Plug 'tiagovla/tokyodark.nvim'
-Plug 'ellisonleao/gruvbox.nvim'
+Plug 'sainnhe/gruvbox-material'
+Plug 'sainnhe/sonokai'
+Plug 'sainnhe/everforest'
 
 " LSP & Completion
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
@@ -51,6 +53,7 @@ Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'master', 'do': ':TSUpdate' 
 Plug 'bfrg/vim-c-cpp-modern'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'
+Plug 'drinkataco/vim-md-toc'
 
 " Code Tools
 Plug 'Raimondi/delimitMate'
