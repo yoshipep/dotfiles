@@ -4,23 +4,18 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Uses host UID environment variable, defaults to 1000 if not set
         USER_ID: ${UID:-1000}
     container_name: claude-code
-    # Use default bridge network (no user-defined network = no embedded DNS)
+    # Default bridge (no embedded DNS at 127.0.0.11) + explicit DNS routes through FORWARD chain
+    # This allows net don/doff to control container internet access
     network_mode: bridge
-    # Configure DNS to use specific DNS server (traffic goes through FORWARD chain)
-    # Value loaded from network.conf at runtime via environment variable
     dns:
       - ${DNS_SERVER}
     volumes:
-      # Mount the host repos directory to the container
       - ~/repos:/home/claude/repos
-      # Mount Claude Code configuration from host
       - ~/.claude/agents:/home/claude/.claude/agents
       - ~/.claude/statusline.sh:/home/claude/.claude/statusline.sh
       - ~/.claude/settings.json:/home/claude/.claude/settings.json
-      # Optionally persist Claude Code configuration
       - claude-config:/home/claude/.config
     stdin_open: true
     tty: true

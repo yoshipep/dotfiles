@@ -1,177 +1,145 @@
-# Development Environment Setup Repository
+# Development Environment Setup
 
-Automated development environment setup for **Ubuntu** systems with two installation modes.
+Personal dotfiles repository with automated installation. Clone and run one script to get an identical development environment on any machine.
 
-## Installation Modes
+Supports **Ubuntu** and **Debian**.
 
-### FULL Mode (Default)
-
-Complete development environment for personal systems:
-
-- **Shell**: zsh, oh-my-zsh, powerlevel10k
-- **Terminal**: alacritty, tmux, tmuxinator
-- **Editor**: Neovim with LSP, treesitter, and 8 themes
-- **Development**: GDB (custom build), Ghidra, Docker, VirtualBox
-- **Network**: Custom firewall with VM isolation, static IP, system services
-- **Tools**: batcat, ripgrep, git-delta, lazydocker, tree-sitter, asm-lsp and many more
-- **Python**: virtualenvwrapper, autopep8, isort
-- **Build**: Rust/Cargo, Go, Node.js, TeX Live, OpenJDK, bash-language-server
-
-### MINIMAL Mode
-
-Essential dotfiles for corporate/restricted environments:
-
-- **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
-- **Terminal**: alacritty, tmux, tmuxinator
-- **Editor**: Neovim with LSP, treesitter, and 8 themes
-- **Tools**: batcat, ripgrep, tree-sitter, clangd, clang-format, shellcheck, asm-lsp
-- **Build**: Rust/Cargo (for tree-sitter, asm-lsp & alacritty), Go, Node.js (for CoC)
-
-**Skips**: GDB build, Docker, Ghidra, VirtualBox, firewall, TeX Live, system services, git-delta, lazydocker, KeePassXC, meld, ipython3, virtualenvwrapper
-
-## Usage
+## Quick Start
 
 ```bash
 bash install_env.sh
 ```
 
-The installer will prompt for:
-
+The installer prompts for:
 1. **Installation mode** (FULL or MINIMAL)
-2. **Neovim theme** (8 options: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox)
-3. **Network configuration** (FULL mode only - DNS, IP, gateway)
+2. **Neovim theme** (8 options)
+3. **Network configuration** (FULL mode only)
 
-## Configuration During Installation
+---
 
-### Neovim Theme Selection (Both Modes)
+## Installation Modes
 
-Choose from 8 colorschemes during installation. Theme is saved to `~/.vim_theme` and can be changed later by editing the file.
+### FULL Mode
 
-### Network Configuration (FULL Mode Only)
+Complete environment for personal systems:
 
-During installation, the installer will **prompt you to open and edit `network.conf`** with your settings:
+- **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
+- **Terminal**: Alacritty, tmux, tmuxinator
+- **Editor**: Neovim with LSP, treesitter, CoC, and 8 themes
+- **Development**: GDB (custom multi-arch build), Ghidra, Docker, VirtualBox
+- **Network**: Custom firewall with VM isolation, static IP, systemd services
+- **Tools**: batcat, ripgrep, git-delta, lazydocker, tree-sitter, asm-lsp, KeePassXC
+- **Python**: virtualenvwrapper, autopep8, isort, ipython
+- **Build**: Go, Rust/Cargo, Node.js, TeX Live, OpenJDK
 
-- `DNS_SERVER`: Your DNS server IP (Pi-hole, router, or 8.8.8.8)
-- `HOST_IP`: This machine's static IP address
-- `GATEWAY`: Your router's IP address
-- `NETMASK`: Network mask (default: 24)
-- `WAN_IFACE`: Leave empty for auto-detection
+### MINIMAL Mode
 
-Configuration is copied to `/etc/network.conf` and loaded **at runtime** (no hardcoded values). All scripts source this file dynamically.
+Essential dotfiles for corporate or restricted environments:
 
-**After installation - Changing Networks:**
+- **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
+- **Terminal**: Alacritty, tmux, tmuxinator
+- **Editor**: Neovim with LSP, treesitter, CoC, and 8 themes
+- **Tools**: batcat, ripgrep, clangd, clang-format, shellcheck, tree-sitter, asm-lsp
+- **Build**: Go, Rust/Cargo, Node.js
+
+**Skips**: GDB build, Docker, VirtualBox, Ghidra, firewall, TeX Live, system services, git-delta, lazydocker, KeePassXC, ipython, virtualenvwrapper
+
+---
+
+## Network Control (FULL Mode)
+
+All network settings are loaded at runtime from `/etc/network.conf` — never hardcoded. Edit with `net config` to apply changes everywhere at once.
+
+### Commands
 
 ```bash
-net config
-# Opens /etc/network.conf in editor
-# Edit values, save, and exit
-# Prompts: Apply changes now? (Docker + Firewall) [Y/n]
-# Press Enter → Everything reloads automatically
+net on/off        # Enable/disable host internet access
+net don/doff      # Enable/disable Docker container internet access
+net status        # Show current host and Docker network state
+net config        # Edit /etc/network.conf, reload Docker + firewall
+net firewall      # Edit /etc/firewall.sh and optionally reload
+net start         # Reload firewall rules
+net flush         # Flush all iptables rules (emergency reset)
 ```
 
-**Manual configuration required:**
+### Firewall Architecture
 
-- **IPv4 forwarding**: Enable in `/etc/sysctl.conf` (prompted during installation)
-- **IPv6**: Option to disable
+- Default DROP on INPUT, OUTPUT, FORWARD chains
+- VM isolation: three virtual networks (vboxnet0: mail, vboxnet1: web, vboxnet2: dev)
+- Port scan detection (NULL, XMAS, malformed flags)
+- Firewall logs via NFLOG to `/var/log/ulog/firewall.log`
 
-## Key Features
+### Docker Networking
 
-### Firewall Control (FULL Mode)
-
-**Network Access Control:**
-
-- `net on` - Enable host network access (internet browsing)
-- `net off` - Disable host network access
-- `net don` - Enable Docker container network access
-- `net doff` - Disable Docker container network access
-- `net status` - Show current host and Docker network status
-
-**Firewall Management:**
-
-- `net config` - Edit `/etc/network.conf` and optionally apply changes (reload Docker + Firewall)
-- `net firewall` - Edit `/etc/firewall.sh` directly and optionally reload
-- `net start` - Reload firewall rules from `/etc/network.conf` (useful if you edit config manually)
-- `net enable` - Enable firewall (set default DROP policy)
-- `net disable` - Disable firewall (set default ACCEPT policy - allows all traffic)
-- `net flush` - Flush all iptables rules (emergency use)
-
-### Docker Integration (FULL Mode)
-
-Containers requiring internet must use:
+Containers needing internet access must use default bridge + explicit DNS:
 
 ```yaml
 network_mode: bridge
 dns:
-    - ${DNS_SERVER} # Loaded from /etc/network.conf at runtime
+  - ${DNS_SERVER}
 ```
 
-This routes traffic through the firewall's FORWARD chain, enabling `net don/doff` control. DNS is loaded dynamically from `/etc/network.conf` via environment variables.
+This routes traffic through the firewall's FORWARD chain, so `net don/doff` controls container internet access. User-defined bridge networks bypass the firewall.
 
-### SSH Configuration for VMs (FULL Mode)
+---
 
-SSH keys must be generated manually:
+## GDB Custom Build (FULL Mode)
 
-```bash
-ssh-keygen -t ed25519 -f ~/.ssh/vbox_vm_name -C "vm-name"
-ssh-copy-id -i ~/.ssh/vbox_vm_name.pub user@vm_ip
-```
+Built from source in `/opt/gdb`:
+- `--enable-targets=all` — single binary, all architectures
+- `patches/gdb.patch` — changes escape sequence display from octal (`\002`) to hex (`\x02`)
 
-⚠️ **Security note**: Private keys are NOT included in this repository.
+---
 
 ## Repository Structure
 
 ```
 .
-├── install_env.sh          # Main installation script with mode selection
-├── network.conf.example    # Network configuration template
-├── dotfiles/               # User configurations
-│   ├── .zshrc, .p10k.zsh  # Shell configuration
-│   ├── .tmux.conf         # Tmux configuration
-│   ├── .clang-format      # C/C++ code formatting
-│   ├── .gef.rc            # GDB Enhanced Features
-│   ├── .gdbinit           # GDB configuration
-│   ├── firewall.sh        # Firewall script (installed to /etc/)
-│   ├── network-static.sh  # Static IP script (installed to /etc/)
-│   ├── firewall.service   # Systemd service (installed to /etc/systemd/system/)
-│   ├── network-static.service # Systemd service (installed to /etc/systemd/system/)
-│   └── .config/           # Application configurations
-│       ├── nvim/          # Neovim with plugins, LSP, and treesitter
-│       ├── alacritty/     # Alacritty terminal emulator
-│       └── coc/           # Conquer of Completion (LSP)
-├── scripts/               # Utility scripts (net, opensocat, seek, sz)
-├── patches/               # Patches (gdb.patch, gef.patch)
-└── dockers/               # Docker Compose configurations
+├── install_env.sh              # Main installer
+├── network.conf.example        # Network config template
+├── dotfiles/
+│   ├── .zshrc                 # Zsh config (oh-my-zsh, aliases, fzf)
+│   ├── .zshenv                # Env vars (PATH, MAKEFLAGS, EDITOR, Rust)
+│   ├── .p10k.zsh              # Powerlevel10k prompt
+│   ├── .tmux.conf             # Tmux config
+│   ├── .gdbinit               # GDB settings + custom commands
+│   ├── .gef.rc                # GEF configuration
+│   ├── .clang-format          # C/C++ formatter (8-space indent, 120 cols)
+│   ├── .gitconfig             # Git config (delta pager, histogram diffs)
+│   ├── firewall.sh            # iptables firewall (installed to /etc/)
+│   ├── network-static.sh      # Static IP script (installed to /etc/)
+│   ├── firewall.service       # Systemd service for firewall
+│   ├── network-static.service # Systemd service for static IP
+│   ├── ulogd.conf             # Firewall logging config
+│   └── .config/
+│       ├── nvim/              # Neovim (plugins, LSP, CoC, snippets, themes)
+│       ├── alacritty/         # Alacritty (Agave Nerd Font, tmux integration)
+│       └── .claude/           # Claude Code settings, statusline, agents
+├── scripts/                    # Utility scripts (copied to ~/scripts/)
+│   ├── net                    # Firewall control wrapper
+│   ├── tmux_sessions.sh       # Session list for tmux status bar
+│   ├── waybar_fw_status.sh    # Firewall status for Waybar
+│   ├── waybar_docker_status.sh# Docker status for Waybar
+│   ├── power_menu.sh          # Wofi power menu
+│   ├── seek                   # Hex dump at file offset
+│   ├── sz                     # Print file size
+│   └── opensocat              # Quick TCP listener on :9090
+├── dockers/
+│   ├── claude/                # Claude Code container (isolated via firewall)
+│   └── opengrok/              # Code search on localhost:8080
+└── patches/
+    ├── gdb.patch              # GDB hex escape sequences
+    └── gef.patch              # GEF opcode spacing
 ```
 
-## Installed System Structure (FULL Mode)
-
-```
-/etc/
-├── network.conf                    # Network configuration (600, root:root)
-├── firewall.sh                     # Firewall script (700, root:root)
-├── network-static.sh               # Static IP script (700, root:root)
-└── systemd/system/
-    ├── firewall.service            # Firewall systemd service (644, root:root)
-    └── network-static.service      # Network systemd service (644, root:root)
-
-$HOME/
-├── scripts/                        # Utility scripts
-│   └── net                         # Firewall control wrapper
-└── dockers/                        # Docker Compose files (use ${DNS_SERVER})
-```
+---
 
 ## Notes
 
-- **Dynamic Configuration**: All network settings loaded at runtime from `/etc/network.conf`
-- **Changing Networks**: Use `net config` to edit configuration and reload Docker + Firewall
-- **Configuration Security**: `network.conf` is gitignored to prevent committing network details
-- **SSH Keys**: User-specific, NOT included in repository
-- **System Services** (FULL mode): Firewall and static network services auto-enabled
-- **Docker Control** (FULL mode): Use `net don/doff` for container internet access
-- **GDB** (FULL mode): Built from source with multi-arch support and custom patch
-- **Snap Removal**: Optional during installation with apt pinning
-- **Terminal**: Alacritty configured with Agave Nerd Font, launches tmux by default
-- **Neovim LSP**: clangd (C/C++), pyright (Python), bash-language-server (Bash), asm-lsp (Assembly)
-- **Treesitter**: Enabled for better syntax highlighting in 15+ languages
-- **Assembly Support**: asm-lsp with ARM and x86/x86-64 support (configure per-project with `.asm-lsp.toml`)
-- **Neovim sessions**: vim-obsession — open nvim first, start recording, then use `nvim -S` to restore
+- **SSH keys**: Not included — generate or transfer manually
+- **network.conf**: Gitignored — never commit it
+- **Snap removal**: Optional during installation (Ubuntu only)
+- **Neovim theme**: Saved to `~/.vim_theme`, change anytime with `echo "gruvbox" > ~/.vim_theme`
+- **Available themes**: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox
+- **Alacritty**: Launches tmux directly as shell — opening a terminal always enters a tmux session
+- **Assembly LSP**: Configure per-project with `.asm-lsp.toml`

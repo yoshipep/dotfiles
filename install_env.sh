@@ -5,11 +5,9 @@ INSTALL="sudo apt install -y"
 # Detect distro (ubuntu or debian)
 DISTRO=$(. /etc/os-release && echo "$ID")
 
-# Verify sudo is available
-
 removeSnap() {
 	if [[ "$DISTRO" != "ubuntu" ]]; then
-		echo "[*] Snap not present on $DISTRO, skipping."
+		echo "[*] Snap removal not supported on $DISTRO, skipping."
 		return
 	fi
 	echo "[!] Do you want to remove snap from the system?"
@@ -23,12 +21,10 @@ removeSnap() {
 
 	echo "[!] Starting snap removal process..."
 
-	# List installed snaps
 	echo "[1/6] Checking installed snaps..."
 	snap list 2>/dev/null || true
 	echo
 
-	# Remove all snap packages
 	echo "[2/6] Removing all snap packages..."
 	SNAPS=$(snap list 2>/dev/null | awk 'NR>1 {print $1}')
 	if [ -n "$SNAPS" ]; then
@@ -41,7 +37,6 @@ removeSnap() {
 	fi
 	echo
 
-	# Stop and disable snapd services
 	echo "[3/6] Stopping and disabling snapd services..."
 	sudo systemctl stop snapd.service 2>/dev/null || true
 	sudo systemctl stop snapd.socket 2>/dev/null || true
@@ -51,13 +46,11 @@ removeSnap() {
 	sudo systemctl disable snapd.seeded.service 2>/dev/null || true
 	echo
 
-	# Remove snapd packages
 	echo "[4/6] Removing snapd packages..."
 	sudo apt-get purge -y snapd gnome-software-plugin-snap 2>/dev/null || true
 	sudo apt-get autoremove -y || true
 	echo
 
-	# Clean up snap directories
 	echo "[5/6] Cleaning up snap directories..."
 	sudo rm -rf /snap
 	sudo rm -rf /var/snap
@@ -68,7 +61,6 @@ removeSnap() {
 	echo "  [*] Directories removed"
 	echo
 
-	# Prevent snap from being reinstalled
 	echo "[6/6] Preventing snap from being reinstalled..."
 	sudo tee /etc/apt/preferences.d/nosnap.pref > /dev/null << 'EOF'
 # Prevent snap from being installed
@@ -104,7 +96,6 @@ checkPackages() {
 	sudo apt update
 	sudo apt upgrade -y
 
-	# All apt packages in one call
 	local PYTHON_VENV="python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
 	local COMMON_PKGS=(
 		build-essential git curl wget
@@ -158,7 +149,7 @@ checkPackages() {
 	export PATH="$HOME/.npm-global/bin:$PATH"
 
 	if [[ "$MODE" == "full" ]]; then
-		echo "[+] Installing FULL mode packages..."
+		echo "[+] Installing FULL mode extras (npm globals, VirtualBox, Docker)..."
 
 		npm i -g neovim yarn bash-language-server prettier
 
@@ -186,9 +177,6 @@ checkPackages() {
 		$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 		sudo usermod -a -G docker "$USER"
 
-	else
-		echo "[+] Installing MINIMAL mode packages..."
-		# Minimal mode skips: Docker, VirtualBox, Ghidra deps, GDB build deps, firewall tools
 	fi
 }
 
@@ -215,7 +203,6 @@ installCommonTools() {
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	cd /tmp
 
-	# Install Neovim to /opt
 	sudo mkdir -p /opt/neovim
 	LOCATION=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/neovim/neovim/releases/download/[^"]+/nvim-linux-x86_64\.tar\.gz"' |
@@ -238,7 +225,6 @@ installExtras() {
 	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
 	cd /tmp
 
-	# Install Ghidra to /opt
 	sudo mkdir -p /opt/ghidra
 	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/NationalSecurityAgency/ghidra/releases/download/[^"]+ghidra_[^"]+_PUBLIC_[^"]+\.zip"' |
@@ -257,7 +243,7 @@ installExtras() {
 }
 
 installPlugins() {
-	echo "[!] Installing: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
+	echo "[!] Installing: vim-plug, powerlevel10k, zsh-autosuggestions"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs \
 		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
@@ -298,7 +284,6 @@ selectTheme() {
 setupAlacritty() {
 	echo "[!] Setting up Alacritty desktop integration..."
 
-	# Create .desktop file so DE can launch it
 	mkdir -p "$HOME/.local/share/applications"
 	cat > "$HOME/.local/share/applications/alacritty.desktop" << 'EOF'
 [Desktop Entry]
@@ -332,7 +317,7 @@ EOF
 }
 
 installFont() {
-	echo "Installing: Agave font from nerd-fonts"
+	echo "[!] Installing: Agave font from nerd-fonts"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	LOCATION=$(curl -s https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/ryanoasis/nerd-fonts/releases/download/[^"]+Agave\.zip"' |
@@ -349,7 +334,7 @@ installFont() {
 
 importCFG() {
 	local MODE="${1:-full}"
-	echo "Importing configuration"
+	echo "[!] Importing configuration"
 	REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 	cd "$HOME"
@@ -377,7 +362,6 @@ importCFG() {
 		mkdir -p patches
 		cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
 
-		# Install TeX Live
 		$INSTALL texlive-full
 
 		# Build GDB from source with patches and multi-arch support
@@ -397,9 +381,6 @@ importCFG() {
 
 		# Copy .gdbinit (required before GEF/GEP installation)
 		cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
-	else
-		echo "[+] Importing MINIMAL configuration..."
-		# Minimal mode skips: TeX Live, GDB build, GEF, network scripts
 	fi
 
 	# ============================================================================
@@ -448,26 +429,21 @@ importCFG() {
 	echo ""
 	echo "[+] Configuring network settings..."
 
-	# Check if network.conf exists, if not create from example
 	if [ ! -f "$REPO_DIR/network.conf" ]; then
 		cp "$REPO_DIR/network.conf.example" "$REPO_DIR/network.conf"
 		echo "[!] Created network.conf from template"
 	fi
 
-	# Prompt user to configure network.conf
 	read -n 1 -r -s -p $'[!] REQUIRED: Configure network settings in network.conf\n    - DNS_SERVER: Your DNS server IP (Pi-hole, router, or 8.8.8.8)\n    - HOST_IP: This machine\'s static IP address\n    - GATEWAY: Your router\'s IP address\n    - NETMASK: Network mask (default: 24 for 255.255.255.0)\n    - WAN_IFACE: Leave empty for auto-detection or specify interface name\nPress enter to open the file...\n'
 	/opt/neovim/bin/nvim "$REPO_DIR/network.conf"
 
-	# Source network.conf to load values
 	source "$REPO_DIR/network.conf"
 
-	# Validate required values
 	if [ -z "$DNS_SERVER" ] || [ -z "$HOST_IP" ] || [ -z "$GATEWAY" ]; then
 		echo "[!] ERROR: DNS_SERVER, HOST_IP, and GATEWAY are required in network.conf"
 		exit 1
 	fi
 
-	# Auto-detect WAN_IFACE if not specified
 	if [ -z "$WAN_IFACE" ]; then
 		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vbox|docker|br-)/ {print $2; exit}')
 		if [ -z "$WAN_IFACE" ]; then
@@ -477,7 +453,6 @@ importCFG() {
 		echo "[+] Auto-detected network interface: $WAN_IFACE"
 	fi
 
-	# Set default NETMASK if not specified
 	NETMASK="${NETMASK:-24}"
 
 	echo "[+] Applying network configuration..."
@@ -487,7 +462,6 @@ importCFG() {
 	echo "    NETMASK: $NETMASK"
 	echo "    WAN_IFACE: $WAN_IFACE"
 
-	# Copy network configuration to /etc
 	sudo cp "$REPO_DIR/network.conf" /etc/network.conf
 	sudo chmod 600 /etc/network.conf
 	sudo chown root:root /etc/network.conf
@@ -500,7 +474,6 @@ importCFG() {
 	sudo chown root:root /etc/network-static.sh
 	sudo chown root:root /etc/firewall.sh
 
-	# Install systemd service files to /etc/systemd/system
 	sudo cp "$REPO_DIR/dotfiles/network-static.service" /etc/systemd/system/
 	sudo cp "$REPO_DIR/dotfiles/firewall.service" /etc/systemd/system/
 	sudo chmod 644 /etc/systemd/system/network-static.service
@@ -513,7 +486,6 @@ importCFG() {
 	for docker_dir in "$REPO_DIR/dockers/"*/; do
 		docker_name=$(basename "$docker_dir")
 		mkdir -p "$HOME/dockers/$docker_name"
-		# Copy all files as-is (no substitution)
 		cp -r "$docker_dir"* "$HOME/dockers/$docker_name/"
 	done
 
@@ -534,7 +506,6 @@ importCFG() {
 	sudo cpan YAML::Tiny
 	sudo perl -MCPAN -e 'install "File::HomeDir"'
 
-	# Install GEF
 	bash -c "$(curl -fsSL https://gef.blah.cat/sh)"
 
 	# Apply GEF patch
@@ -558,20 +529,15 @@ importCFG() {
 	cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
 	chmod +x "$HOME/scripts/"*
 
-	# Optional IPv6 disable
 	read -r -p "[?] Disable ipv6 (y/n): " user_input
 	if [[ "$user_input" == "y" ]]; then
 		sudo /opt/neovim/bin/nvim /etc/default/grub
 		sudo update-grub
 	fi
 
-	# Configure IPv4 forwarding
 	echo ""
 	read -n 1 -r -s -p $'[!] REQUIRED: Enable IPv4 forwarding in /etc/sysctl.conf\n    Add or uncomment: net.ipv4.ip_forward=1\nPress enter to open the file...\n'
 	sudo /opt/neovim/bin/nvim /etc/sysctl.conf
-
-	# Network and firewall scripts already installed to /etc/
-	echo "[+] Network and firewall configuration installed to /etc/"
 
 	# Configure ulogd2 for firewall logging
 	sudo mkdir -p /var/log/ulog
@@ -629,9 +595,9 @@ if [[ "$INSTALL_MODE" == "full" ]]; then
 	echo "[+] Extras: ghidra"
 	echo "[+] Font: Agave"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
-	echo "[+] Build tools: Rust/Cargo, TeX Live, GDB from source"
-	echo "[+] System: Firewall, network services, Docker"
+	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
+	echo "[+] Build tools: Go, Rust/Cargo, TeX Live, GDB from source"
+	echo "[+] System: Firewall, network services, Docker, VirtualBox"
 else
 	echo "[!] The following tools will be installed:"
 	echo "[+] Terminal: alacritty, tmux, tmuxinator"
@@ -640,12 +606,11 @@ else
 	echo "[+] Tools: batcat, ripgrep"
 	echo "[+] Font: Agave"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark"
-	echo "[+] Build tools: Rust/Cargo (minimal), Node.js (for CoC)"
+	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
+	echo "[+] Build tools: Go, Rust/Cargo, Node.js"
 fi
 read -n 1 -r -s -p $'Press enter to continue...\n'
 
-# Optional: Ask about snap removal for both modes
 if [[ "$INSTALL_MODE" == "full" ]]; then
 	removeSnap
 else

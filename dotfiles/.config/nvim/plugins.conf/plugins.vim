@@ -90,22 +90,22 @@ EOF
 " --- Neo-tree ---
 lua << EOF
 require('neo-tree').setup({
-  close_if_last_window = true,  -- Close Neo-tree if it's the last window
+  close_if_last_window = true,
   popup_border_style = "rounded",
   enable_git_status = true,
   enable_diagnostics = true,
   filesystem = {
     follow_current_file = {
-      enabled = true,  -- Auto-focus current file
+      enabled = true,
     },
     hijack_netrw_behavior = "open_default",
-    use_libuv_file_watcher = true,  -- Auto-refresh on file changes
+    use_libuv_file_watcher = true,
   },
   window = {
     position = "left",
     width = 30,
     mappings = {
-      ["<space>"] = "none",  -- Disable space (we use it for other things)
+      ["<space>"] = "none",
       ["<cr>"] = "open",
       ["o"] = "open",
     },
@@ -137,19 +137,16 @@ require('nvim-treesitter').setup {
     "make", "cmake"
   },
 
-  -- Install parsers synchronously (only applied to ensure_installed)
   sync_install = false,
-
-  -- Automatically install missing parsers when entering buffer
   auto_install = true,
 
   highlight = {
-    enable = true,              -- Enable treesitter-based highlighting
-    additional_vim_regex_highlighting = false,  -- Disable old regex highlighting
+    enable = true,
+    additional_vim_regex_highlighting = false,
   },
 
   indent = {
-    enable = true               -- Better indentation
+    enable = true
   },
 }
 EOF
@@ -187,14 +184,14 @@ require("gitsigns").setup({
     untracked    = { text = '┆' },
   },
   signs_staged_enable = true,
-  signcolumn = true,  -- Toggle with `:Gitsigns toggle_signs`
+  signcolumn = true,
   watch_gitdir = {
     follow_files = true
   },
   auto_attach = true,
   sign_priority = 6,
   update_debounce = 100,
-  status_formatter = nil, -- Use default
+  status_formatter = nil,
   max_file_length = 40000, -- Disable if file is longer than this (in lines)
   preview_config = {
     -- Options passed to nvim_open_win
