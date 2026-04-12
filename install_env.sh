@@ -1,6 +1,7 @@
 #!/bin/bash
 
 INSTALL="sudo apt install -y"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Detect distro (ubuntu or debian)
 DISTRO=$(. /etc/os-release && echo "$ID")
@@ -116,7 +117,7 @@ checkPackages() {
 			flex bison autoconf automake
 			libreadline-dev libncurses-dev python3-dev
 			libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
-			ulogd2 ca-certificates
+			ulogd2 ca-certificates texlive-full
 			"$openjdk"
 		)
 		$INSTALL "${COMMON_PKGS[@]}" "${FULL_PKGS[@]}"
@@ -162,7 +163,7 @@ checkPackages() {
 			sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
 		sudo apt update
 		VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
-		$INSTALL "$VB_PKG"
+		$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
 
 		# Docker setup (separate: requires repo before install)
 		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
@@ -201,7 +202,7 @@ installShell() {
 installCommonTools() {
 	echo "[!] Installing: neovim, batcat, ripgrep"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
-	cd /tmp
+	pushd /tmp > /dev/null
 
 	sudo mkdir -p /opt/neovim
 	LOCATION=$(curl -s https://api.github.com/repos/neovim/neovim/releases/latest |
@@ -214,17 +215,19 @@ installCommonTools() {
 	rm neovim.tar.gz
 	sudo ln -sf /opt/neovim/bin/nvim /usr/local/bin/nvim
 
+	popd > /dev/null
 	cargo install bat
 	cargo install ripgrep
 }
 
 installExtras() {
-	echo "[!] Installing: ghidra, git-delta, lazydocker"
+	echo "[!] Installing: ghidra, git-delta, lazydocker, GDB, GEF, GEP"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	source "$HOME/.cargo/env"
 	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
-	cd /tmp
 
+	# Ghidra
+	pushd /tmp > /dev/null
 	sudo mkdir -p /opt/ghidra
 	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/NationalSecurityAgency/ghidra/releases/download/[^"]+ghidra_[^"]+_PUBLIC_[^"]+\.zip"' |
@@ -236,10 +239,44 @@ installExtras() {
 	rm -rf "$folder"
 	rm ghidra.zip
 	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
+	popd > /dev/null
 
 	cargo install git-delta
-
 	go install github.com/jesseduffield/lazydocker@latest
+
+	# GDB build from source with patches and multi-arch support
+	mkdir -p "$HOME/patches"
+	cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
+	sudo mkdir -p /opt/gdb
+	sudo chown "$USER:$USER" /opt/gdb
+	pushd /opt/gdb > /dev/null
+	git clone https://sourceware.org/git/binutils-gdb.git .
+	git apply "$HOME/patches/gdb.patch"
+	CFLAGS="-O2" ./configure --enable-targets=all \
+		--with-system-readline \
+		--with-python=/usr/bin/python3 \
+		--enable-gdbserver \
+		--disable-binutils --disable-ld --disable-gold \
+		--disable-gas --disable-gprof --disable-sim
+	make -j "$(nproc)"
+	sudo make install
+	popd > /dev/null
+
+	# GEF and GEP (GDB plugins)
+	cd "$HOME"
+	sudo cpan Unicode::GCString
+	sudo cpan App::cpanminus
+	sudo cpan YAML::Tiny
+	sudo perl -MCPAN -e 'install "File::HomeDir"'
+	bash -c "$(curl -fsSL https://gef.blah.cat/sh)"
+	GEF_FILE=$(find "$HOME" -maxdepth 1 -name ".gef-*.py" | head -n 1)
+	if [ -n "$GEF_FILE" ]; then
+		patch -p0 < "$HOME/patches/gef.patch" || echo "[!] Warning: GEF patch may need updating for current version"
+	else
+		echo "[!] Warning: GEF file not found, patch not applied"
+	fi
+	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
+	"$HOME/.local/share/GEP/install.sh"
 }
 
 installPlugins() {
@@ -322,25 +359,21 @@ installFont() {
 	LOCATION=$(curl -s https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest |
 		grep -Eo '"browser_download_url":\s*"https://github.com/ryanoasis/nerd-fonts/releases/download/[^"]+Agave\.zip"' |
 		awk -F'"' '{ print $4 }')
-	curl -L -o Agave.zip "$LOCATION"
-	mv ./Agave.zip /tmp
-
-	cd /tmp
-	unzip Agave.zip
-	mkdir ~/.local/share/fonts/ 2>/dev/null
-	mv ./AgaveNerdFont-Regular.ttf ~/.local/share/fonts/
+	curl -L -o /tmp/Agave.zip "$LOCATION"
+	pushd /tmp > /dev/null
+	unzip Agave.zip AgaveNerdFont-Regular.ttf
+	mkdir -p ~/.local/share/fonts/
+	mv AgaveNerdFont-Regular.ttf ~/.local/share/fonts/
+	rm Agave.zip
+	popd > /dev/null
 	fc-cache -f
 }
 
 importCFG() {
 	local MODE="${1:-full}"
 	echo "[!] Importing configuration"
-	REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-	cd "$HOME"
-	mkdir -p projects
-	mkdir -p repos
-
+	mkdir -p "$HOME/repos"
 	# ============================================================================
 	# STAGE 1: Neovim config (required early for plugin setup)
 	# ============================================================================
@@ -350,41 +383,10 @@ importCFG() {
 	# Create snippet symlinks (required for nvim plugin setup)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
-	ln -sf "$HOME/.config/nvim/custom-snippets/S.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
+	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/S.snippets"
 
 	# ============================================================================
-	# STAGE 2: FULL MODE - Heavy build processes (patches, TeX Live, GDB)
-	# ============================================================================
-	if [[ "$MODE" == "full" ]]; then
-		echo "[+] FULL configuration (Stage 2: Build processes)..."
-
-		# Copy patches (required for GDB build)
-		mkdir -p patches
-		cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
-
-		$INSTALL texlive-full
-
-		# Build GDB from source with patches and multi-arch support
-		sudo mkdir -p /opt/gdb
-		sudo chown "$USER:$USER" /opt/gdb
-		cd /opt/gdb
-		git clone https://sourceware.org/git/binutils-gdb.git .
-		git apply "$HOME/patches/gdb.patch"
-		CFLAGS="-O2" ./configure --enable-targets=all \
-			--with-system-readline \
-			--with-python=/usr/bin/python3 \
-			--enable-gdbserver \
-			--disable-binutils --disable-ld --disable-gold \
-			--disable-gas --disable-gprof --disable-sim
-		make -j "$(nproc)"
-		sudo make install
-
-		# Copy .gdbinit (required before GEF/GEP installation)
-		cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
-	fi
-
-	# ============================================================================
-	# STAGE 3: Neovim plugin setup (both modes)
+	# STAGE 2: Neovim plugin setup (both modes)
 	# ============================================================================
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
@@ -394,7 +396,7 @@ importCFG() {
 	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
 
 	# ============================================================================
-	# STAGE 4: Common dotfiles (both modes - after plugin setup)
+	# STAGE 3: Dotfiles (both modes - after plugin setup)
 	# ============================================================================
 	cd "$HOME"
 	cp "$REPO_DIR/dotfiles/.zshenv" "$HOME/"
@@ -412,6 +414,14 @@ importCFG() {
 	cp -r "$REPO_DIR/dotfiles/.config/alacritty" "$HOME/.config/"
 	cp "$REPO_DIR/dotfiles/.tmux.conf" "$HOME/.tmux.conf"
 	setupAlacritty
+
+	if [[ "$MODE" == "full" ]]; then
+		cp "$REPO_DIR/dotfiles/.gdbinit" "$HOME/"
+		cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
+		mkdir -p "$HOME/scripts"
+		cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
+		chmod +x "$HOME/scripts/"*
+	fi
 
 	if [[ "$MODE" != "full" ]]; then
 		echo "[+] MINIMAL installation complete!"
@@ -499,35 +509,7 @@ importCFG() {
 		docker compose -f "$HOME/dockers/$i/docker-compose.yml" up -d 2>/dev/null || true
 	done
 
-	# Install Perl modules (for GDB/GEF)
-	cd "$HOME"
-	sudo cpan Unicode::GCString
-	sudo cpan App::cpanminus
-	sudo cpan YAML::Tiny
-	sudo perl -MCPAN -e 'install "File::HomeDir"'
 
-	bash -c "$(curl -fsSL https://gef.blah.cat/sh)"
-
-	# Apply GEF patch
-	GEF_FILE=$(find "$HOME" -maxdepth 1 -name ".gef-*.py" | head -n 1)
-	if [ -n "$GEF_FILE" ]; then
-		cd "$HOME"
-		patch -p0 < "$HOME/patches/gef.patch" || echo "[!] Warning: GEF patch may need updating for current version"
-	else
-		echo "[!] Warning: GEF file not found, patch not applied"
-	fi
-
-	# Install GEP (GDB Enhanced Prompt)
-	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
-	"$HOME/.local/share/GEP/install.sh"
-
-	# ============================================================================
-	# FULL MODE: Final dotfiles (after GEF/GEP installation)
-	# ============================================================================
-	cp "$REPO_DIR/dotfiles/.gef.rc" "$HOME/"
-	mkdir -p "$HOME/scripts"
-	cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
-	chmod +x "$HOME/scripts/"*
 
 	read -r -p "[?] Disable ipv6 (y/n): " user_input
 	if [[ "$user_input" == "y" ]]; then
