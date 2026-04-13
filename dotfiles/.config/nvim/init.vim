@@ -39,7 +39,7 @@ Plug 'navarasu/onedark.nvim'
 Plug 'Mofiqul/vscode.nvim'
 Plug 'Dracula/vim', { 'as': 'dracula' }
 Plug 'tiagovla/tokyodark.nvim'
-Plug 'sainnhe/gruvbox-material'
+Plug 'ellisonleao/gruvbox.nvim'
 Plug 'sainnhe/sonokai'
 Plug 'sainnhe/everforest'
 
