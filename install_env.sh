@@ -148,11 +148,11 @@ checkPackages() {
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
+	npm i -g neovim yarn bash-language-server prettier
 
 	if [[ "$MODE" == "full" ]]; then
 		echo "[+] Installing FULL mode extras (npm globals, VirtualBox, Docker)..."
 
-		npm i -g neovim yarn bash-language-server prettier
 
 		# VirtualBox setup (separate: requires repo before install)
 		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
