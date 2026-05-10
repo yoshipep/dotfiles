@@ -24,7 +24,30 @@
       "Bash(head:*)",
       "Bash(tail:*)",
       "Bash(wc:*)",
-      "Bash(which:*)"
+      "Bash(which:*)",
+      "Bash(cd:*)",
+      "Bash(awk:*)",
+      "Bash(printf:*)",
+      "Bash(gcc:*)",
+      "Bash(g++:*)",
+      "Bash(diff:*)",
+      "Bash(ps:*)",
+      "Bash(id:*)",
+      "Bash(ip:*)",
+      "Bash(kill:*)",
+      "Bash(killall:*)",
+      "Bash(nm:*)",
+      "Bash(pkill:*)",
+      "Bash(pwd:*)",
+      "Bash(rg:*)",
+      "Bash(sort:*)",
+      "Bash(ss:*)",
+      "Bash(test:*)",
+      "Bash(time:*)",
+      "Bash(uniq:*)",
+      "Bash(which:*)",
+      "Bash(xxd:*)",
+      "Bash(mkdir:*)"
     ]
   }
 }
