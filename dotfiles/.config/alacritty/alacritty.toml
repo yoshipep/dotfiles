@@ -43,7 +43,7 @@ hide_when_typing = true
 bindings = [
   # Splits
   { key = "Return", mods = "Control|Shift", chars = "\uE001" }, # split
-  { key = "H",      mods = "Control|Shift", chars = "\uE002" }, # split
+  { key = "Space",  mods = "Control|Shift", chars = "\uE002" }, # split
   # Resizing (Ctrl+Shift+Arrows)
   { key = "Left",  mods = "Control|Shift", chars = "\uE010" },
   { key = "Right", mods = "Control|Shift", chars = "\uE011" },
