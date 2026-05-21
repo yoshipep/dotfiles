@@ -11,6 +11,7 @@ bash install_env.sh
 ```
 
 The installer prompts for:
+
 1. **Installation mode** (FULL or MINIMAL)
 2. **Neovim theme** (8 options)
 3. **Network configuration** (FULL mode only)
@@ -24,7 +25,7 @@ The installer prompts for:
 Complete environment for personal systems:
 
 - **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
-- **Terminal**: Alacritty, tmux, tmuxinator
+- **Terminal**: Alacritty, tmux
 - **Editor**: Neovim with LSP, treesitter, CoC, and 8 themes
 - **Development**: GDB (custom multi-arch build), Ghidra, Docker, VirtualBox
 - **Network**: Custom firewall with VM isolation, static IP, systemd services
@@ -37,7 +38,7 @@ Complete environment for personal systems:
 Essential dotfiles for corporate or restricted environments:
 
 - **Shell**: zsh, oh-my-zsh, powerlevel10k, fzf, eza
-- **Terminal**: Alacritty, tmux, tmuxinator
+- **Terminal**: Alacritty, tmux
 - **Editor**: Neovim with LSP, treesitter, CoC, and 8 themes
 - **Tools**: batcat, ripgrep, clangd, clang-format, shellcheck, tree-sitter, asm-lsp
 - **Build**: Go, Rust/Cargo, Node.js
@@ -86,6 +87,7 @@ This routes traffic through the firewall's FORWARD chain, so `net don/doff` cont
 ## GDB Custom Build (FULL Mode)
 
 Built from source in `/opt/gdb`:
+
 - `--enable-targets=all` — single binary, all architectures
 - `patches/gdb.patch` — changes escape sequence display from octal (`\002`) to hex (`\x02`)
 
@@ -113,14 +115,11 @@ Built from source in `/opt/gdb`:
 │   ├── ulogd.conf             # Firewall logging config
 │   └── .config/
 │       ├── nvim/              # Neovim (plugins, LSP, CoC, snippets, themes)
-│       ├── alacritty/         # Alacritty (Agave Nerd Font, tmux integration)
-│       └── .claude/           # Claude Code settings, statusline, agents
+│       └── alacritty/         # Alacritty (Agave Nerd Font, tmux integration)
 ├── scripts/                    # Utility scripts (copied to ~/scripts/)
 │   ├── net                    # Firewall control wrapper
-│   ├── tmux_sessions.sh       # Session list for tmux status bar
-│   ├── waybar_fw_status.sh    # Firewall status for Waybar
-│   ├── waybar_docker_status.sh# Docker status for Waybar
-│   ├── power_menu.sh          # Wofi power menu
+│   ├── tmux_fw_status.sh      # Firewall status for tmux status bar
+│   ├── tmux-sessionizer.sh    # Interactive session switcher (bound to prefix+f)
 │   ├── seek                   # Hex dump at file offset
 │   ├── sz                     # Print file size
 │   └── opensocat              # Quick TCP listener on :9090

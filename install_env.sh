@@ -141,7 +141,7 @@ checkPackages() {
 	rustup component add rust-analyzer
 	cargo install --locked tree-sitter-cli
 	cargo install asm-lsp
-	cargo install alacritty
+	cargo install --locked alacritty --features=x11,wayland
 
 	# Node.js (both modes - needed for CoC)
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
@@ -339,7 +339,7 @@ EOF
 	# Set Ctrl+Alt+T shortcut based on desktop environment
 	local DE="${XDG_CURRENT_DESKTOP,,}"
 	case "$DE" in
-		gnome|ubuntu|pop)
+		gnome|ubuntu|ubuntu-xorg|pop)
 			echo "[+] Configuring GNOME shortcut..."
 			local KB_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
 			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['${KB_PATH}']"
