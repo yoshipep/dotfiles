@@ -393,6 +393,7 @@ importCFG() {
 	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
 	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
 
 	# ============================================================================

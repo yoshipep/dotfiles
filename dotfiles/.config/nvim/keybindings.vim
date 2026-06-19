@@ -35,10 +35,10 @@ nmap <leader>9 <Plug>AirlineSelectTab9
 
 " --- Window/Split Navigation ---
 nnoremap <leader>vb :ls<cr>:vertical sb<space>
-nnoremap <silent> <M-up> :wincmd k<CR>
-nnoremap <silent> <M-down> :wincmd j<CR>
-nnoremap <silent> <M-left> :wincmd h<CR>
-nnoremap <silent> <M-right> :wincmd l<CR>
+nnoremap <silent> <leader><Up>    :wincmd k<CR>
+nnoremap <silent> <leader><Down>  :wincmd j<CR>
+nnoremap <silent> <leader><Left>  :wincmd h<CR>
+nnoremap <silent> <leader><Right> :wincmd l<CR>
 
 " --- Word Manipulation ---
 inoremap <M-d> <esc>"_ciw              " Insert mode: delete current word

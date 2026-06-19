@@ -49,11 +49,12 @@ Plug 'antoinemadec/coc-fzf'
 
 " Syntax & Language Support
 Plug 'sheerun/vim-polyglot'
-Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'master', 'do': ':TSUpdate' }
+Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'main', 'do': ':TSUpdate' }
 Plug 'bfrg/vim-c-cpp-modern'
 Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'
 Plug 'drinkataco/vim-md-toc'
+Plug 'OXY2DEV/markview.nvim'
 
 " Code Tools
 Plug 'Raimondi/delimitMate'
@@ -126,6 +127,7 @@ source ~/.config/nvim/autocommands.vim
 source ~/.config/nvim/keybindings.vim
 
 lua require('inactive_regions')
+lua require('markview_config')
 
 " Plugin-specific configurations
 source ~/.config/nvim/plugins.conf/coc.vim

@@ -27,7 +27,18 @@ autocmd FileType tex setlocal spell
 autocmd FileType tex set fo-=t
 
 " Markdown settings
-autocmd FileType markdown setlocal spell
+function! s:MarkdownSetup() abort
+    if get(b:, 'markdown_setup_done', 0) | return | endif
+    setlocal spell
+    nnoremap <buffer> <silent> <leader>v :lua require('markview_config').vsplit()<CR>
+    nnoremap <buffer> <silent> <leader>h :lua require('markview_config').hsplit()<CR>
+    let b:markdown_setup_done = 1
+endfunction
+augroup MarkdownSetup
+    autocmd!
+    autocmd FileType markdown call s:MarkdownSetup()
+    autocmd VimEnter * if &filetype ==# 'markdown' | call s:MarkdownSetup() | endif
+augroup END
 
 " Text files settings
 autocmd FileType text setlocal spell
