@@ -336,11 +336,16 @@ Comment=A fast, cross-platform, OpenGL terminal emulator
 StartupNotify=true
 EOF
 
-	# Set Ctrl+Alt+T shortcut based on desktop environment
+	# Set Ctrl+Alt+T shortcut based on desktop environment.
+	# Ubuntu reports XDG_CURRENT_DESKTOP as "ubuntu:GNOME", so match substrings.
 	local DE="${XDG_CURRENT_DESKTOP,,}"
 	case "$DE" in
-		gnome|ubuntu|ubuntu-xorg|pop)
+		*gnome*|*ubuntu*|*pop*)
 			echo "[+] Configuring GNOME shortcut..."
+			# Free Ctrl+Alt+T from GNOME's built-in terminal launcher, which
+			# otherwise shadows the custom keybinding.
+			gsettings set org.gnome.settings-daemon.plugins.media-keys terminal "[]"
+
 			local KB_PATH="/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/"
 			dconf write /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings "['${KB_PATH}']"
 			dconf write "${KB_PATH}name" "'Alacritty'"
