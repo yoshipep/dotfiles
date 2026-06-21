@@ -5,11 +5,12 @@ export PATH="$HOME/.fzf/bin:$HOME/.cargo/bin:$PATH"
 repos=$(find -L ~/repos -maxdepth 1 -mindepth 0 -type d)
 opt=$(find -L /opt -maxdepth 1 -mindepth 1 -type d)
 scripts=$HOME/scripts
+dockers=$HOME/dockers
 
 if [[ $# -eq 1 ]]; then
     selected=$1
 else
-    selected=$(echo -e "$repos\n$opt\n$scripts" | fzf --tmux)
+    selected=$(echo -e "$repos\n$opt\n$scripts\n$dockers" | fzf --tmux)
 fi
 
 if [[ -z $selected ]]; then
