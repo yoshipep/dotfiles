@@ -2,8 +2,8 @@
 
 export PATH="$HOME/.fzf/bin:$HOME/.cargo/bin:$PATH"
 
-repos=$(find ~/repos -maxdepth 1 -mindepth 0 -type d)
-opt=$(find /opt -maxdepth 1 -mindepth 1 -type d)
+repos=$(find -L ~/repos -maxdepth 1 -mindepth 0 -type d)
+opt=$(find -L /opt -maxdepth 1 -mindepth 1 -type d)
 scripts=$HOME/scripts
 
 if [[ $# -eq 1 ]]; then
