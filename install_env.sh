@@ -359,17 +359,17 @@ EOF
 }
 
 installFont() {
-	echo "[!] Installing: Agave font from nerd-fonts"
+	echo "[!] Installing: 0xProto font from nerd-fonts"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
 	LOCATION=$(curl -s https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest |
-		grep -Eo '"browser_download_url":\s*"https://github.com/ryanoasis/nerd-fonts/releases/download/[^"]+Agave\.zip"' |
+		grep -Eo '"browser_download_url":\s*"https://github.com/ryanoasis/nerd-fonts/releases/download/[^"]+0xProto\.zip"' |
 		awk -F'"' '{ print $4 }')
-	curl -L -o /tmp/Agave.zip "$LOCATION"
+	curl -L -o /tmp/0xProto.zip "$LOCATION"
 	pushd /tmp > /dev/null
-	unzip Agave.zip AgaveNerdFont-Regular.ttf
+	unzip 0xProto.zip 0xProtoNerdFont-Regular.ttf 0xProtoNerdFont-Bold.ttf 0xProtoNerdFont-Italic.ttf
 	mkdir -p ~/.local/share/fonts/
-	mv AgaveNerdFont-Regular.ttf ~/.local/share/fonts/
-	rm Agave.zip
+	mv 0xProtoNerdFont-Regular.ttf 0xProtoNerdFont-Bold.ttf 0xProtoNerdFont-Italic.ttf ~/.local/share/fonts/
+	rm 0xProto.zip
 	popd > /dev/null
 	fc-cache -f
 }
@@ -581,7 +581,7 @@ if [[ "$INSTALL_MODE" == "full" ]]; then
 	echo "[+] Editor: neovim"
 	echo "[+] Tools: batcat, ripgrep, git-delta, lazydocker"
 	echo "[+] Extras: ghidra"
-	echo "[+] Font: Agave"
+	echo "[+] Font: 0xProto"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
 	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
 	echo "[+] Build tools: Go, Rust/Cargo, TeX Live, GDB from source"
@@ -592,7 +592,7 @@ else
 	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
 	echo "[+] Editor: neovim"
 	echo "[+] Tools: batcat, ripgrep"
-	echo "[+] Font: Agave"
+	echo "[+] Font: 0xProto"
 	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
 	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
 	echo "[+] Build tools: Go, Rust/Cargo, Node.js"
