@@ -250,8 +250,13 @@ installExtras() {
 	sudo mkdir -p /opt/gdb
 	sudo chown "$USER:$USER" /opt/gdb
 	pushd /opt/gdb > /dev/null
-	git clone https://sourceware.org/git/binutils-gdb.git .
-	git apply "$HOME/patches/gdb.patch"
+	# Pin to a fixed release tag so patches/gdb.patch always applies deterministically.
+	# Master drifts constantly (the escape-printing code even moved valprint.c -> char-print.c),
+	# which is why floating on master kept breaking the patch. To upgrade: bump GDB_TAG, then
+	# regenerate patches/gdb.patch against the new tag.
+	GDB_TAG="gdb-16.3-release"
+	git clone --depth 1 --branch "$GDB_TAG" https://sourceware.org/git/binutils-gdb.git .
+	git apply --3way "$HOME/patches/gdb.patch"
 	CFLAGS="-O2" ./configure --enable-targets=all \
 		--with-system-readline \
 		--with-python=/usr/bin/python3 \
@@ -268,15 +273,23 @@ installExtras() {
 	sudo cpan App::cpanminus
 	sudo cpan YAML::Tiny
 	sudo perl -MCPAN -e 'install "File::HomeDir"'
-	bash -c "$(curl -fsSL https://gef.blah.cat/sh)"
-	GEF_FILE=$(find "$HOME" -maxdepth 1 -name ".gef-*.py" | head -n 1)
-	if [ -n "$GEF_FILE" ]; then
-		patch -p0 < "$HOME/patches/gef.patch" || echo "[!] Warning: GEF patch may need updating for current version"
+	# Fetch the latest GEF into a stable, version-less filename that ~/.gdbinit sources
+	# (see dotfiles/.gdbinit). We avoid the blah.cat installer because it writes a
+	# version-stamped filename (~/.gef-<tag>.py) and a matching source line into ~/.gdbinit
+	# that importCFG later overwrites when it copies the repo's .gdbinit.
+	GEF_FILE="$HOME/.gef-gdb.py"
+	curl -fsSL https://raw.githubusercontent.com/hugsy/gef/main/gef.py -o "$GEF_FILE"
+	# Opcode spacing tweak: put a space between opcode bytes. Anchored on the code
+	# expression (not a line number), so it keeps working across GEF version bumps.
+	if grep -q '"".join(f"{b:02x}"' "$GEF_FILE"; then
+		sed -i 's/"".join(f"{b:02x}"/" ".join(f"{b:02x}"/' "$GEF_FILE"
 	else
-		echo "[!] Warning: GEF file not found, patch not applied"
+		echo "[!] Warning: GEF opcode expression not found; spacing tweak not applied (upstream may have changed)"
 	fi
 	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
-	"$HOME/.local/share/GEP/install.sh"
+	# --skip-gdbinit: the repo's .gdbinit already sources GEP (importCFG would clobber
+	# any line GEP appends here anyway).
+	"$HOME/.local/share/GEP/install.sh" --skip-gdbinit
 }
 
 installPlugins() {

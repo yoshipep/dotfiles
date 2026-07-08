@@ -127,8 +127,7 @@ Built from source in `/opt/gdb`:
 │   ├── claude/                # Claude Code container (isolated via firewall)
 │   └── opengrok/              # Code search on localhost:8080
 └── patches/
-    ├── gdb.patch              # GDB hex escape sequences
-    └── gef.patch              # GEF opcode spacing
+    └── gdb.patch              # GDB hex escape sequences (pinned to GDB_TAG)
 ```
 
 ---

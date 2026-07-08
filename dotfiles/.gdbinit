@@ -36,3 +36,9 @@ Print all environment variables from the given envp pointer
 Usage: printenvp <addr>
 Example: printenvp $rdx
 end
+
+# GEF (installed to a stable filename by install_env.sh) and GEP.
+# Sourced here rather than relying on the installers' own ~/.gdbinit edits,
+# because importCFG copies this file over ~/.gdbinit and would clobber them.
+source ~/.gef-gdb.py
+source ~/.local/share/GEP/gdbinit-gep.py
