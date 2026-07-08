@@ -25,7 +25,6 @@ alias c='clear'
 alias d="cd $HOME/Desktop"
 alias q='exit'
 alias gdb='gdb -q'
-alias gdbm='gdb-multiarch -q'
 alias uu='sudo apt update; sudo apt upgrade -y'
 alias python='python3'
 alias ipy='ipython --no-confirm-exit --pprint --colors=NoColor --autocall=1'
@@ -47,7 +46,5 @@ alias lzd='lazydocker'
 
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-fpath+=${ZDOTDIR:-~}/.zsh_functions
 
 bindkey '^U' backward-kill-line

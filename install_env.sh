@@ -106,6 +106,7 @@ checkPackages() {
 		shellcheck tmux tmuxinator universal-ctags
 		libssl-dev pkg-config
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
+		unzip fontconfig
 	)
 
 	if [[ "$MODE" == "full" ]]; then
@@ -117,7 +118,7 @@ checkPackages() {
 			flex bison autoconf automake
 			libreadline-dev libncurses-dev python3-dev
 			libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
-			ulogd2 ca-certificates texlive-full
+			ulogd2 ca-certificates gnupg texlive-full
 			"$openjdk"
 		)
 		$INSTALL "${COMMON_PKGS[@]}" "${FULL_PKGS[@]}"
@@ -184,17 +185,26 @@ checkPackages() {
 installShell() {
 	echo "[!] Installing: zsh, oh my zsh, fzf, eza"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
-	local zssh=$(which zsh)
+	local zssh=$(command -v zsh)
 	if [ -z "$zssh" ]; then
 		$INSTALL zsh
 	fi
 
 	wget https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
-	sh install.sh
+	# --unattended: skip oh-my-zsh's own chsh prompt and its final `exec zsh -l`,
+	# which would otherwise pause the install inside an interactive shell.
+	sh install.sh --unattended
 	rm install.sh
 
+	# Set zsh as the login shell explicitly (root via sudo, so no password prompt).
+	if [ "$SHELL" != "$(command -v zsh)" ]; then
+		sudo chsh -s "$(command -v zsh)" "$USER"
+	fi
+
 	git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
-	~/.fzf/install
+	# Non-interactive: generate ~/.fzf.zsh with bindings+completion, but don't touch
+	# rc files (repo .zshrc sources ~/.fzf.zsh itself and is copied over later anyway).
+	~/.fzf/install --key-bindings --completion --no-update-rc
 
 	cargo install eza
 }
