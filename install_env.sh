@@ -168,12 +168,16 @@ installRust() {
 	rustup component add rust-analyzer
 }
 
-# cargo tools (from checkPackages): tree-sitter + asm-lsp. User-space. Depends: rust.
+# cargo CLI tools: tree-sitter, asm-lsp, eza, bat, ripgrep, git-delta. User-space. Depends: rust.
 installCargoTools() {
-	echo "[!] Installing cargo tools (tree-sitter, asm-lsp)..."
+	echo "[!] Installing cargo tools..."
 	source "$HOME/.cargo/env"
 	cargo install --locked tree-sitter-cli
 	cargo install --locked asm-lsp
+	cargo install --locked eza
+	cargo install --locked bat
+	cargo install --locked ripgrep
+	cargo install --locked git-delta
 }
 
 # Alacritty (own component: GUI-only, needs system -dev libs). User-space build. Depends: rust.
@@ -266,13 +270,11 @@ installShell() {
 	# Non-interactive: generate ~/.fzf.zsh with bindings+completion, but don't touch
 	# rc files (repo .zshrc sources ~/.fzf.zsh itself and is copied over later anyway).
 	~/.fzf/install --key-bindings --completion --no-update-rc
-
-	cargo install --locked eza
 }
 
-installCommonTools() {
-	echo "[!] Installing: neovim, batcat, ripgrep"
-	read -n 1 -r -s -p $'Press enter to continue...\n'
+# Neovim binary -> /opt/neovim (root) + symlink to /usr/local/bin/nvim.
+installNeovim() {
+	echo "[!] Installing: neovim"
 	pushd /tmp > /dev/null
 
 	sudo mkdir -p /opt/neovim
@@ -287,17 +289,11 @@ installCommonTools() {
 	sudo ln -sf /opt/neovim/bin/nvim /usr/local/bin/nvim
 
 	popd > /dev/null
-	cargo install --locked bat
-	cargo install --locked ripgrep
 }
 
-installExtras() {
-	echo "[!] Installing: ghidra, git-delta, lazydocker, GDB, GEF, GEP"
-	read -n 1 -r -s -p $'Press enter to continue...\n'
-	source "$HOME/.cargo/env"
-	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
-
-	# Ghidra
+# Ghidra -> /opt/ghidra (root).
+installGhidra() {
+	echo "[!] Installing: ghidra"
 	pushd /tmp > /dev/null
 	sudo mkdir -p /opt/ghidra
 	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
@@ -311,11 +307,18 @@ installExtras() {
 	rm ghidra.zip
 	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
 	popd > /dev/null
+}
 
-	cargo install --locked git-delta
+# lazydocker via go install. Depends: go.
+installLazydocker() {
+	echo "[!] Installing: lazydocker"
+	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
 	go install github.com/jesseduffield/lazydocker@latest
+}
 
-	# GDB build from source with patches and multi-arch support
+# GDB built from source (multi-arch + hex-escape patch) -> /opt/gdb. Depends: syspkgs-full.
+installGdb() {
+	echo "[!] Building GDB from source..."
 	mkdir -p "$HOME/patches"
 	cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
 	sudo mkdir -p /opt/gdb
@@ -325,7 +328,7 @@ installExtras() {
 	# Master drifts constantly (the escape-printing code even moved valprint.c -> char-print.c),
 	# which is why floating on master kept breaking the patch. To upgrade: bump GDB_TAG, then
 	# regenerate patches/gdb.patch against the new tag.
-	GDB_TAG="gdb-16.3-release"
+	local GDB_TAG="gdb-16.3-release"
 	git clone --depth 1 --branch "$GDB_TAG" https://sourceware.org/git/binutils-gdb.git .
 	git apply --3way "$HOME/patches/gdb.patch"
 	CFLAGS="-O2" ./configure --enable-targets=all \
@@ -337,8 +340,11 @@ installExtras() {
 	make -j "$(nproc)"
 	sudo make install
 	popd > /dev/null
+}
 
-	# GEF and GEP (GDB plugins)
+# GEF + GEP (GDB plugins). Depends: gdb.
+installGefGep() {
+	echo "[!] Installing GEF + GEP..."
 	cd "$HOME"
 	sudo cpan Unicode::GCString
 	sudo cpan App::cpanminus
@@ -348,7 +354,7 @@ installExtras() {
 	# (see dotfiles/.gdbinit). We avoid the blah.cat installer because it writes a
 	# version-stamped filename (~/.gef-<tag>.py) and a matching source line into ~/.gdbinit
 	# that importCFG later overwrites when it copies the repo's .gdbinit.
-	GEF_FILE="$HOME/.gef-gdb.py"
+	local GEF_FILE="$HOME/.gef-gdb.py"
 	curl -fsSL https://raw.githubusercontent.com/hugsy/gef/main/gef.py -o "$GEF_FILE"
 	# Opcode spacing tweak: put a space between opcode bytes. Anchored on the code
 	# expression (not a line number), so it keeps working across GEF version bumps.
@@ -361,6 +367,14 @@ installExtras() {
 	# --skip-gdbinit: the repo's .gdbinit already sources GEP (importCFG would clobber
 	# any line GEP appends here anyway).
 	"$HOME/.local/share/GEP/install.sh" --skip-gdbinit
+}
+
+# Thin wrapper preserving the original FULL install order (git-delta moved to cargo-tools).
+installExtras() {
+	installGhidra
+	installLazydocker
+	installGdb
+	installGefGep
 }
 
 installPlugins() {
@@ -458,36 +472,20 @@ installFont() {
 	fc-cache -f
 }
 
-importCFG() {
+# Config deploy (TIER-1 FLOOR): copy all dotfiles. No tools required, no root.
+installConfigDeploy() {
 	local MODE="${1:-full}"
-	echo "[!] Importing configuration"
-
+	echo "[!] Deploying configuration files"
 	mkdir -p "$HOME/repos"
-	# ============================================================================
-	# STAGE 1: Neovim config (required early for plugin setup)
-	# ============================================================================
+
+	# Neovim config + snippet symlinks
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-
-	# Create snippet symlinks (required for nvim plugin setup)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/S.snippets"
 
-	# ============================================================================
-	# STAGE 2: Neovim plugin setup (both modes)
-	# ============================================================================
-	/opt/neovim/bin/nvim --headless +PlugInstall +qa
-	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
-	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
-	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
-	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
-	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
-
-	# ============================================================================
-	# STAGE 3: Dotfiles (both modes - after plugin setup)
-	# ============================================================================
+	# Shell / git / editor / claude / alacritty dotfiles
 	cd "$HOME"
 	cp "$REPO_DIR/dotfiles/.zshenv" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
@@ -512,19 +510,24 @@ importCFG() {
 		cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
 		chmod +x "$HOME/scripts/"*
 	fi
+}
 
-	if [[ "$MODE" != "full" ]]; then
-		echo "[+] MINIMAL installation complete!"
-		echo ""
-		echo "Next steps:"
-		echo "  1. Restart your shell or run: source ~/.zshrc"
-		echo "  2. Open Neovim and themes will be loaded automatically"
-		echo "  3. Change theme anytime by editing ~/.vim_theme"
-		return
-	fi
+# Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
+installNvimPlugins() {
+	echo "[!] Setting up Neovim plugins (headless)..."
+	/opt/neovim/bin/nvim --headless +PlugInstall +qa
+	/opt/neovim/bin/nvim --headless +CocUpdate +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
+	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
+	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
+	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
+}
 
+# Network: firewall + static IP + services + docker compose (root, full). Depends: docker.
+installNetwork() {
 	# ============================================================================
-	# FULL MODE ONLY: NETWORK CONFIGURATION
+	# NETWORK CONFIGURATION
 	# ============================================================================
 	echo ""
 	echo "[+] Configuring network settings..."
@@ -634,6 +637,24 @@ importCFG() {
 
 }
 
+# Thin wrapper preserving the original FULL/MINIMAL flow.
+importCFG() {
+	local MODE="${1:-full}"
+	echo "[!] Importing configuration"
+	installConfigDeploy "$MODE"
+	installNvimPlugins
+	if [[ "$MODE" != "full" ]]; then
+		echo "[+] MINIMAL installation complete!"
+		echo ""
+		echo "Next steps:"
+		echo "  1. Restart your shell or run: source ~/.zshrc"
+		echo "  2. Open Neovim and themes will be loaded automatically"
+		echo "  3. Change theme anytime by editing ~/.vim_theme"
+		return
+	fi
+	installNetwork
+}
+
 echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
 echo ""
 echo "[?] Select installation mode:"
@@ -695,7 +716,7 @@ fi
 
 checkPackages "$INSTALL_MODE"
 installShell
-installCommonTools
+installNeovim
 if [[ "$INSTALL_MODE" == "full" ]]; then
 	installExtras
 fi
