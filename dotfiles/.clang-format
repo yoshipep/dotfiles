@@ -43,6 +43,7 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 NamespaceIndentation: All
 PointerAlignment: Right
 ReflowComments: false
+# LexicographicNumeric requires clangd/clang-format >= 15 (pinned via pipx in install_env.sh)
 SortUsingDeclarations: LexicographicNumeric
 SpaceBeforeParens: ControlStatementsExceptForEachMacros
 SpacesInContainerLiterals: true

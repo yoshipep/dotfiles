@@ -101,7 +101,7 @@ checkPackages() {
 	local COMMON_PKGS=(
 		build-essential git curl wget
 		python3-pip pipx "$PYTHON_VENV" python3-pynvim
-		htop clangd clang-format libclang-dev
+		htop libclang-dev
 		wl-clipboard xclip flameshot
 		shellcheck tmux tmuxinator universal-ctags
 		libssl-dev pkg-config
@@ -126,8 +126,16 @@ checkPackages() {
 		$INSTALL "${COMMON_PKGS[@]}"
 	fi
 
-	# Install Python CLI tools via pipx (isolated environments)
-	pipx install autopep8 isort
+	# Install Python CLI tools via pipx (isolated environments).
+	# clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
+	# binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
+	# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
+	# apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
+	# parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
+	# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
+	# Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
+	local LLVM_PIN="19.1.7"
+	pipx install autopep8 isort "clangd==${LLVM_PIN}" "clang-format==${LLVM_PIN}"
 
 	# Go (both modes - needed for lazydocker and other Go tools)
 	GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
@@ -141,7 +149,7 @@ checkPackages() {
 	source "$HOME/.cargo/env"
 	rustup component add rust-analyzer
 	cargo install --locked tree-sitter-cli
-	cargo install asm-lsp
+	cargo install --locked asm-lsp
 	cargo install --locked alacritty --features=x11,wayland
 
 	# Node.js (both modes - needed for CoC)
@@ -206,7 +214,7 @@ installShell() {
 	# rc files (repo .zshrc sources ~/.fzf.zsh itself and is copied over later anyway).
 	~/.fzf/install --key-bindings --completion --no-update-rc
 
-	cargo install eza
+	cargo install --locked eza
 }
 
 installCommonTools() {
@@ -226,8 +234,8 @@ installCommonTools() {
 	sudo ln -sf /opt/neovim/bin/nvim /usr/local/bin/nvim
 
 	popd > /dev/null
-	cargo install bat
-	cargo install ripgrep
+	cargo install --locked bat
+	cargo install --locked ripgrep
 }
 
 installExtras() {
@@ -251,7 +259,7 @@ installExtras() {
 	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
 	popd > /dev/null
 
-	cargo install git-delta
+	cargo install --locked git-delta
 	go install github.com/jesseduffield/lazydocker@latest
 
 	# GDB build from source with patches and multi-arch support
