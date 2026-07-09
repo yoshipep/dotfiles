@@ -81,18 +81,22 @@ EOF
 	echo
 }
 
-checkPackages() {
-	local MODE="${1:-full}"
-	cd "$HOME"
-	echo "[!] Installing required packages..."
+# ============================================================================
+# PACKAGE COMPONENTS
+#
+# checkPackages() below is a thin wrapper preserving the original FULL/MINIMAL
+# order. Each install* function is self-contained so it can also be selected
+# individually by the component menu. syspkgs-* are apt-only (Debian/Ubuntu) by
+# design; the user-space toolchain/tool components work on any distro (and
+# assume the needed system -dev libs are already present when apt isn't used).
+# ============================================================================
 
-	# Add repos/PPAs before apt update
+# apt: core system packages (Debian/Ubuntu only). Root required.
+installSyspkgsCore() {
+	echo "[!] Installing core system packages (apt)..."
 	if [[ "$DISTRO" == "ubuntu" ]]; then
 		$INSTALL software-properties-common
 		sudo add-apt-repository -y ppa:git-core/ppa
-		if [[ "$MODE" == "full" ]]; then
-			sudo add-apt-repository -y ppa:phoerious/keepassxc
-		fi
 	fi
 	sudo apt update
 	sudo apt upgrade -y
@@ -108,85 +112,134 @@ checkPackages() {
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
 		unzip fontconfig
 	)
+	$INSTALL "${COMMON_PKGS[@]}"
+}
 
-	if [[ "$MODE" == "full" ]]; then
-		local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
-		local FULL_PKGS=(
-			keepassxc perl gawk socat
-			python3-virtualenvwrapper ipython3
-			libmpfr-dev libgmp-dev libmpc-dev
-			flex bison autoconf automake
-			libreadline-dev libncurses-dev python3-dev
-			libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
-			ulogd2 ca-certificates gnupg texlive-full
-			"$openjdk"
-		)
-		$INSTALL "${COMMON_PKGS[@]}" "${FULL_PKGS[@]}"
-	else
-		$INSTALL "${COMMON_PKGS[@]}"
+# apt: full-mode-only system packages (texlive, gdb build-deps, java, ulogd2...). Root required.
+installSyspkgsFull() {
+	echo "[!] Installing full-mode system packages (apt)..."
+	if [[ "$DISTRO" == "ubuntu" ]]; then
+		sudo add-apt-repository -y ppa:phoerious/keepassxc
+		sudo apt update
 	fi
+	local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
+	local FULL_PKGS=(
+		keepassxc perl gawk socat
+		python3-virtualenvwrapper ipython3
+		libmpfr-dev libgmp-dev libmpc-dev
+		flex bison autoconf automake
+		libreadline-dev libncurses-dev python3-dev
+		libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
+		ulogd2 ca-certificates gnupg texlive-full
+		"$openjdk"
+	)
+	$INSTALL "${FULL_PKGS[@]}"
+}
 
-	# Install Python CLI tools via pipx (isolated environments).
-	# clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
-	# binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
-	# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
-	# apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
-	# parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
-	# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
-	# Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
+# pipx: Python CLI tools + pinned clangd/clang-format. User-space.
+# clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
+# binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
+# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
+# apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
+# parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
+# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
+# Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
+installPipxTools() {
+	echo "[!] Installing pipx tools (clangd/clang-format pinned)..."
 	local LLVM_PIN="19.1.7"
 	pipx install autopep8 isort "clangd==${LLVM_PIN}" "clang-format==${LLVM_PIN}"
+}
 
-	# Go (both modes - needed for lazydocker and other Go tools)
-	GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
+# Go toolchain -> /usr/local (root). Needed for lazydocker and other Go tools.
+installGo() {
+	echo "[!] Installing Go toolchain..."
+	local GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
 	curl -L -o /tmp/go.tar.gz "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz"
 	sudo tar -C /usr/local -xzf /tmp/go.tar.gz
 	rm /tmp/go.tar.gz
 	export PATH="/usr/local/go/bin:$PATH"
+}
 
-	# Rust and Cargo (both modes - needed for tree-sitter, asm-lsp, and alacritty)
+# Rust/Cargo via rustup. User-space. Needed for tree-sitter, asm-lsp, alacritty, eza...
+installRust() {
+	echo "[!] Installing Rust/Cargo toolchain..."
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
 	rustup component add rust-analyzer
+}
+
+# cargo tools (from checkPackages): tree-sitter + asm-lsp. User-space. Depends: rust.
+installCargoTools() {
+	echo "[!] Installing cargo tools (tree-sitter, asm-lsp)..."
+	source "$HOME/.cargo/env"
 	cargo install --locked tree-sitter-cli
 	cargo install --locked asm-lsp
-	cargo install --locked alacritty --features=x11,wayland
+}
 
-	# Node.js (both modes - needed for CoC)
+# Alacritty (own component: GUI-only, needs system -dev libs). User-space build. Depends: rust.
+installAlacritty() {
+	echo "[!] Building Alacritty..."
+	source "$HOME/.cargo/env"
+	cargo install --locked alacritty --features=x11,wayland
+}
+
+# Node.js -> /usr/local (root) + npm globals (~/.npm-global). Needed for CoC.
+installNode() {
+	echo "[!] Installing Node.js + npm globals..."
 	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
 	npm i -g neovim yarn bash-language-server prettier
+}
 
+# VirtualBox (apt via Oracle repo). Root, full-mode.
+installVirtualBox() {
+	echo "[!] Installing VirtualBox..."
+	wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
+	# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
+	local VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+	[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
+	echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
+		sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
+	sudo apt update
+	local VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
+	$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
+}
+
+# Docker CE (apt via Docker repo). Root, full-mode.
+installDocker() {
+	echo "[!] Installing Docker..."
+	for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
+	sudo install -m 0755 -d /etc/apt/keyrings
+	sudo curl -fsSL "https://download.docker.com/linux/${DISTRO}/gpg" -o /etc/apt/keyrings/docker.asc
+	sudo chmod a+r /etc/apt/keyrings/docker.asc
+	echo \
+	"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DISTRO} \
+	$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+	sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+	sudo apt update
+	$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+	sudo usermod -a -G docker "$USER"
+}
+
+# Thin wrapper preserving the original FULL/MINIMAL order (behavior-preserving).
+checkPackages() {
+	local MODE="${1:-full}"
+	cd "$HOME"
+	echo "[!] Installing required packages..."
+	installSyspkgsCore
+	[[ "$MODE" == "full" ]] && installSyspkgsFull
+	installPipxTools
+	installGo
+	installRust
+	installCargoTools
+	installAlacritty
+	installNode
 	if [[ "$MODE" == "full" ]]; then
-		echo "[+] Installing FULL mode extras (npm globals, VirtualBox, Docker)..."
-
-
-		# VirtualBox setup (separate: requires repo before install)
-		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
-		# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
-		VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
-		[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
-		echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
-			sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
-		sudo apt update
-		VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
-		$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
-
-		# Docker setup (separate: requires repo before install)
-		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
-		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo curl -fsSL "https://download.docker.com/linux/${DISTRO}/gpg" -o /etc/apt/keyrings/docker.asc
-		sudo chmod a+r /etc/apt/keyrings/docker.asc
-		echo \
-		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DISTRO} \
-		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt update
-		$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-		sudo usermod -a -G docker "$USER"
-
+		echo "[+] Installing FULL mode extras (VirtualBox, Docker)..."
+		installVirtualBox
+		installDocker
 	fi
 }
 
