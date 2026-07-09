@@ -84,9 +84,8 @@ EOF
 # ============================================================================
 # PACKAGE COMPONENTS
 #
-# checkPackages() below is a thin wrapper preserving the original FULL/MINIMAL
-# order. Each install* function is self-contained so it can also be selected
-# individually by the component menu. syspkgs-* are apt-only (Debian/Ubuntu) by
+# Each install* function is self-contained so the component menu (bottom of the
+# file) can select it individually. syspkgs-* are apt-only (Debian/Ubuntu) by
 # design; the user-space toolchain/tool components work on any distro (and
 # assume the needed system -dev libs are already present when apt isn't used).
 # ============================================================================
@@ -227,26 +226,6 @@ installDocker() {
 	sudo usermod -a -G docker "$USER"
 }
 
-# Thin wrapper preserving the original FULL/MINIMAL order (behavior-preserving).
-checkPackages() {
-	local MODE="${1:-full}"
-	cd "$HOME"
-	echo "[!] Installing required packages..."
-	installSyspkgsCore
-	[[ "$MODE" == "full" ]] && installSyspkgsFull
-	installPipxTools
-	installGo
-	installRust
-	installCargoTools
-	installAlacritty
-	installNode
-	if [[ "$MODE" == "full" ]]; then
-		echo "[+] Installing FULL mode extras (VirtualBox, Docker)..."
-		installVirtualBox
-		installDocker
-	fi
-}
-
 installShell() {
 	echo "[!] Installing: zsh, oh my zsh, fzf, eza"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
@@ -353,7 +332,7 @@ installGefGep() {
 	# Fetch the latest GEF into a stable, version-less filename that ~/.gdbinit sources
 	# (see dotfiles/.gdbinit). We avoid the blah.cat installer because it writes a
 	# version-stamped filename (~/.gef-<tag>.py) and a matching source line into ~/.gdbinit
-	# that importCFG later overwrites when it copies the repo's .gdbinit.
+	# that installConfigDeploy later overwrites when it copies the repo's .gdbinit.
 	local GEF_FILE="$HOME/.gef-gdb.py"
 	curl -fsSL https://raw.githubusercontent.com/hugsy/gef/main/gef.py -o "$GEF_FILE"
 	# Opcode spacing tweak: put a space between opcode bytes. Anchored on the code
@@ -364,17 +343,9 @@ installGefGep() {
 		echo "[!] Warning: GEF opcode expression not found; spacing tweak not applied (upstream may have changed)"
 	fi
 	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
-	# --skip-gdbinit: the repo's .gdbinit already sources GEP (importCFG would clobber
+	# --skip-gdbinit: the repo's .gdbinit already sources GEP (installConfigDeploy would clobber
 	# any line GEP appends here anyway).
 	"$HOME/.local/share/GEP/install.sh" --skip-gdbinit
-}
-
-# Thin wrapper preserving the original FULL install order (git-delta moved to cargo-tools).
-installExtras() {
-	installGhidra
-	installLazydocker
-	installGdb
-	installGefGep
 }
 
 installPlugins() {
@@ -637,90 +608,151 @@ installNetwork() {
 
 }
 
-# Thin wrapper preserving the original FULL/MINIMAL flow.
-importCFG() {
-	local MODE="${1:-full}"
-	echo "[!] Importing configuration"
-	installConfigDeploy "$MODE"
-	installNvimPlugins
-	if [[ "$MODE" != "full" ]]; then
-		echo "[+] MINIMAL installation complete!"
-		echo ""
-		echo "Next steps:"
-		echo "  1. Restart your shell or run: source ~/.zshrc"
-		echo "  2. Open Neovim and themes will be loaded automatically"
-		echo "  3. Change theme anytime by editing ~/.vim_theme"
-		return
-	fi
-	installNetwork
+# ============================================================================
+# COMPONENT REGISTRY + SELECTION MENU
+#
+# Each component maps to one install function, its dependencies, and whether it
+# needs root. The menu offers presets or a custom pick-list; dependencies are
+# auto-included, and selected components always run in CANON_ORDER (the proven
+# original pipeline order) so prerequisites run first.
+# ============================================================================
+
+declare -A COMP_FN COMP_ROOT COMP_DEPS COMP_DESC
+
+reg() { # name fn root(y/n) deps desc
+	COMP_FN["$1"]="$2"; COMP_ROOT["$1"]="$3"; COMP_DEPS["$1"]="$4"; COMP_DESC["$1"]="$5"
 }
 
-echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
-echo ""
-echo "[?] Select installation mode:"
-echo "    1) FULL - Complete development environment (recommended for personal systems)"
-echo "       Includes: Full shell setup, Neovim, GDB, Ghidra, Docker, firewall, VMs, all tools"
-echo ""
-echo "    2) MINIMAL - Essential dotfiles only (for corporate/restricted environments)"
-echo "       Includes: Full shell setup, Neovim, Font, basic tools"
-echo "       Skips: GDB build, Docker, firewall, TeX Live, Ghidra, system services"
-echo ""
-read -p "Enter your choice [1-2] (default: 1): " install_mode
+reg config       installConfigDeploy  n ""                           "Deploy all dotfiles (the floor)"
+reg syspkgs-core installSyspkgsCore    y ""                           "apt: core system packages"
+reg syspkgs-full installSyspkgsFull    y ""                           "apt: full extras (texlive, gdb deps, java)"
+reg rust         installRust           n ""                           "Rust/Cargo (rustup)"
+reg go           installGo             y ""                           "Go toolchain"
+reg node         installNode           y ""                           "Node.js + npm globals"
+reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format, autopep8, isort (pinned)"
+reg cargo-tools  installCargoTools     n "rust"                       "tree-sitter, asm-lsp, eza, bat, ripgrep, git-delta"
+reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
+reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
+reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
+reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config" "Neovim plugins (headless PlugInstall/Coc/TS)"
+reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
+reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"
+reg ghidra       installGhidra         y "syspkgs-full"               "Ghidra"
+reg gdb          installGdb            y "syspkgs-full"               "GDB from source (multi-arch)"
+reg gef-gep      installGefGep         y "gdb"                        "GEF + GEP (gdb plugins)"
+reg lazydocker   installLazydocker     n "go"                         "lazydocker"
+reg docker       installDocker         y ""                           "Docker CE"
+reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
+reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
+reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
-case "$install_mode" in
-	2)
-		INSTALL_MODE="minimal"
-		echo "[+] MINIMAL installation selected"
+# Canonical execution order (mirrors the original FULL pipeline).
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
+
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
+PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
+
+# Capability detection (Debian/Ubuntu apt-based by design).
+if [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; then CAN_ROOT=1; else CAN_ROOT=0; fi
+command -v apt-get >/dev/null 2>&1 && HAS_APT=1 || HAS_APT=0
+
+# A component is runnable here if we have the privilege/tooling it needs.
+comp_available() {
+	local c="$1"
+	[ "${COMP_ROOT[$c]}" = "y" ] && [ "$CAN_ROOT" -eq 0 ] && return 1
+	case "$c" in
+		syspkgs-core|syspkgs-full|docker|virtualbox|network|removesnap)
+			[ "$HAS_APT" -eq 1 ] || return 1 ;;
+	esac
+	return 0
+}
+
+# Expand a selection with all transitive deps, emitted in canonical order.
+resolve_deps() {
+	local -A seen=()
+	local queue=($1) c d
+	while [ ${#queue[@]} -gt 0 ]; do
+		c="${queue[0]}"; queue=("${queue[@]:1}")
+		[ -n "${seen[$c]:-}" ] && continue
+		seen[$c]=1
+		for d in ${COMP_DEPS[$c]}; do
+			[ -n "${seen[$d]:-}" ] || queue+=("$d")
+		done
+	done
+	local out=() x
+	for x in "${CANON_ORDER[@]}"; do
+		[ -n "${seen[$x]:-}" ] && out+=("$x")
+	done
+	echo "${out[*]}"
+}
+
+run_selection() {
+	local resolved; resolved="$(resolve_deps "$1")"
+	local c skipped=()
+	echo ""
+	echo "[+] Plan (dependencies resolved, in order):"
+	for c in $resolved; do
+		if comp_available "$c"; then
+			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
+		else
+			skipped+=("$c")
+			printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+		fi
+	done
+	[ ${#skipped[@]} -gt 0 ] && echo "" && \
+		echo "[!] ${#skipped[@]} component(s) will be skipped (need root/apt); assuming already satisfied."
+	echo ""
+	read -r -p "Proceed? (y/N): " ok
+	[[ "$ok" =~ ^[Yy]$ ]] || { echo "[*] Aborted."; exit 0; }
+	for c in $resolved; do
+		comp_available "$c" || { echo "[*] Skipping $c (missing capability)"; continue; }
+		echo ""
+		echo "==== $c : ${COMP_DESC[$c]} ===="
+		"${COMP_FN[$c]}"
+	done
+	echo ""
+	echo "[+] Done. Restart your shell (or: source ~/.zshrc)."
+}
+
+# ---------------------------------------------------------------------------
+# Menu
+# ---------------------------------------------------------------------------
+echo "[!] Installation script by Josep Comes (Debian/Ubuntu, apt-based)."
+echo ""
+[ "$CAN_ROOT" -eq 1 ] && echo "[*] root: available" || echo "[*] root: NONE — apt/system components will be skipped"
+[ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/vbox/network unavailable on this box"
+echo ""
+echo "[?] Choose what to install:"
+echo "    1) personal  - full personal environment (everything)"
+echo "    2) dev-core  - shell + editor + tmux + cargo tools (corporate-friendly)"
+echo "    3) config    - deploy dotfiles only (no installs)"
+echo "    4) custom    - pick components individually"
+echo ""
+read -r -p "Enter choice [1-4] (default: 1): " menu_choice
+
+case "$menu_choice" in
+	2) SELECTION="$PRESET_DEVCORE" ;;
+	3) SELECTION="config" ;;
+	4)
+		echo ""
+		echo "[?] Available components (dependencies are added automatically):"
+		declare -a MENU_IDX
+		i=1
+		for c in "${CANON_ORDER[@]}"; do
+			MENU_IDX[$i]="$c"
+			avail=""; comp_available "$c" || avail="   [unavailable here]"
+			printf "   %2d) %-13s %s%s\n" "$i" "$c" "${COMP_DESC[$c]}" "$avail"
+			i=$((i + 1))
+		done
+		echo ""
+		read -r -p "Enter numbers (space-separated): " picks
+		SELECTION=""
+		for n in $picks; do
+			[ -n "${MENU_IDX[$n]:-}" ] && SELECTION="$SELECTION ${MENU_IDX[$n]}"
+		done
 		;;
-	*)
-		INSTALL_MODE="full"
-		echo "[+] FULL installation selected"
-		;;
+	*) SELECTION="$PRESET_PERSONAL" ;;  # 1 or empty (default) -> full personal env
 esac
 
-echo ""
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: alacritty, tmux, tmuxinator"
-	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Editor: neovim"
-	echo "[+] Tools: batcat, ripgrep, git-delta, lazydocker"
-	echo "[+] Extras: ghidra"
-	echo "[+] Font: 0xProto"
-	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
-	echo "[+] Build tools: Go, Rust/Cargo, TeX Live, GDB from source"
-	echo "[+] System: Firewall, network services, Docker, VirtualBox"
-else
-	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: alacritty, tmux, tmuxinator"
-	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Editor: neovim"
-	echo "[+] Tools: batcat, ripgrep"
-	echo "[+] Font: 0xProto"
-	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
-	echo "[+] Build tools: Go, Rust/Cargo, Node.js"
-fi
-read -n 1 -r -s -p $'Press enter to continue...\n'
-
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	removeSnap
-else
-	echo ""
-	read -r -p "[?] Remove snap from system? (y/N): " snap_choice
-	if [[ "$snap_choice" =~ ^[Yy]$ ]]; then
-		removeSnap
-	fi
-fi
-
-checkPackages "$INSTALL_MODE"
-installShell
-installNeovim
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	installExtras
-fi
-installFont
-installPlugins
-selectTheme
-importCFG "$INSTALL_MODE"
+run_selection "$SELECTION"
