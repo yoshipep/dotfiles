@@ -13,14 +13,20 @@ plugins=(
 
 source $ZSH/oh-my-zsh.sh
 export FZF_DEFAULT_OPTS='--layout=reverse-list'
-BAT_CMD="bat"
-export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
 # Load virtualenvwrapper if installed (FULL mode only)
 [[ -f /usr/share/virtualenvwrapper/virtualenvwrapper.sh ]] && source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
-alias cat="$BAT_CMD"
-alias catnp="$BAT_CMD --paging=never"
-alias ls='eza -g --long --header --icons --git'
-alias vim="/opt/neovim/bin/nvim"
+
+# Tool-backed aliases are defined only when the tool exists, so a box without
+# them (e.g. a locked corporate machine with no installs) keeps its working core
+# commands instead of shadowing them with a missing binary.
+if command -v bat >/dev/null 2>&1; then
+	BAT_CMD="bat"
+	export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | $BAT_CMD -p -lman'"
+	alias cat="$BAT_CMD"
+	alias catnp="$BAT_CMD --paging=never"
+fi
+command -v eza  >/dev/null 2>&1 && alias ls='eza -g --long --header --icons --git'
+command -v nvim >/dev/null 2>&1 && alias vim='nvim'
 alias c='clear'
 alias d="cd $HOME/Desktop"
 alias q='exit'
