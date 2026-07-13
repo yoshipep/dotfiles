@@ -119,7 +119,7 @@ Built from source in `/opt/gdb`:
 ├── scripts/                    # Utility scripts (copied to ~/scripts/)
 │   ├── net                    # Firewall control wrapper
 │   ├── tmux_fw_status.sh      # Firewall status for tmux status bar
-│   ├── tmux-sessionizer.sh    # Interactive session switcher (bound to prefix+f)
+│   ├── tmux-sessionizer.sh    # Interactive session switcher: tmuxinator projects + dirs (prefix+f)
 │   ├── seek                   # Hex dump at file offset
 │   ├── sz                     # Print file size
 │   └── opensocat              # Quick TCP listener on :9090
