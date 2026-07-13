@@ -8,7 +8,9 @@ for dir in "$HOME/.config/tmuxinator" "$HOME/.tmuxinator"; do
 done
 
 project_names() {
-    [[ -z $config_dir ]] && return
+    # Skip projects entirely if tmuxinator isn't installed: listing them would
+    # offer entries that can't be opened
+    [[ -z $config_dir ]] || ! command -v tmuxinator >/dev/null && return
     find -L "$config_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) \
         -printf '%f\n' | sed 's/\.ya\?ml$//' | sort
 }
