@@ -13,13 +13,14 @@ services:
       - ${DNS_SERVER}
     volumes:
       - ~/repos:/home/claude/repos
+      - claude-state:/home/claude/.claude
       - ~/.claude/agents:/home/claude/.claude/agents
       - ~/.claude/statusline.sh:/home/claude/.claude/statusline.sh
       - ~/.claude/settings.json:/home/claude/.claude/settings.json
-      - claude-config:/home/claude/.config
+      - ./global-CLAUDE.md:/home/claude/.claude/CLAUDE.md:ro
     stdin_open: true
     tty: true
     restart: unless-stopped
 
 volumes:
-  claude-config:
+  claude-state:

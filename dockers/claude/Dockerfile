@@ -36,9 +36,10 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # Add Claude, local bins and cargo to PATH
 ENV PATH="/home/${USER_NAME}/.local/bin:/home/${USER_NAME}/.cargo/bin:${PATH}"
 
-# Create repos directory
+# Create repos directory (.claude created so its persistence volume seeds with claude ownership)
 RUN mkdir -p /home/${USER_NAME}/repos \
-    && mkdir -p /home/${USER_NAME}/.config && chmod 700 /home/${USER_NAME}/.config
+    && mkdir -p /home/${USER_NAME}/.config && chmod 700 /home/${USER_NAME}/.config \
+    && mkdir -p /home/${USER_NAME}/.claude
 
 # Install pyright LSP
 RUN pipx install pyright
