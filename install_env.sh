@@ -689,7 +689,7 @@ resolve_deps() {
 
 run_selection() {
 	local resolved; resolved="$(resolve_deps "$1")"
-	local c skipped=()
+	local c rc skipped=() failed=()
 	echo ""
 	echo "[+] Plan (dependencies resolved, in order):"
 	for c in $resolved; do
@@ -710,8 +710,26 @@ run_selection() {
 		echo ""
 		echo "==== $c : ${COMP_DESC[$c]} ===="
 		"${COMP_FN[$c]}"
+		rc=$?
+		if [ "$rc" -ne 0 ]; then
+			echo "[!] FAILED: $c (exit $rc)"
+			failed+=("$c")
+		fi
 	done
 	echo ""
+	# A component that exits non-zero is reported here rather than being lost in
+	# the scrollback. Note this only catches failures the function actually
+	# returns: steps whose last command succeeds while the work inside it failed
+	# (headless nvim always exits 0, for instance) still need a post-check.
+	if [ ${#failed[@]} -gt 0 ]; then
+		echo "[!] ${#failed[@]} component(s) FAILED:"
+		for c in "${failed[@]}"; do
+			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
+		done
+		echo ""
+		echo "[!] Fix the cause, then re-run just those components (menu option 4)."
+		return 1
+	fi
 	echo "[+] Done. Restart your shell (or: source ~/.zshrc)."
 }
 
