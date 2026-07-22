@@ -167,11 +167,37 @@ installRust() {
 	rustup component add rust-analyzer
 }
 
-# cargo CLI tools: tree-sitter, asm-lsp, eza, bat, ripgrep, git-delta. User-space. Depends: rust.
+# tree-sitter CLI -> ~/.local/bin (already on PATH via .zshenv). No root, no Rust.
+# nvim-treesitter is pinned to branch main, which *builds* parsers with this CLI,
+# so nvim-plugins needs it. Taking the prebuilt binary instead of `cargo install
+# tree-sitter-cli` keeps the minimal Neovim path free of the whole Rust toolchain.
+installTreesitterCli() {
+	echo "[!] Installing tree-sitter CLI (prebuilt)..."
+	local LOCATION
+	LOCATION=$(curl -s https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest |
+		grep -Eo '"browser_download_url":\s*"https://github.com/tree-sitter/tree-sitter/releases/download/[^"]+/tree-sitter-linux-x64\.gz"' |
+		awk -F'"' '{ print $4 }')
+	if [ -z "$LOCATION" ]; then
+		echo "[!] Could not resolve a tree-sitter release URL (rate-limited or asset renamed)."
+		return 1
+	fi
+	mkdir -p "$HOME/.local/bin"
+	curl -L -o /tmp/tree-sitter.gz "$LOCATION" || return 1
+	gunzip -f /tmp/tree-sitter.gz || return 1
+	install -m 755 /tmp/tree-sitter "$HOME/.local/bin/tree-sitter"
+	rm -f /tmp/tree-sitter
+	export PATH="$HOME/.local/bin:$PATH"
+	if ! command -v tree-sitter >/dev/null 2>&1; then
+		echo "[!] tree-sitter not on PATH after install."
+		return 1
+	fi
+}
+
+# cargo CLI tools: asm-lsp, eza, bat, ripgrep, git-delta. User-space. Depends: rust.
+# tree-sitter is NOT here — it comes prebuilt from treesitter-cli.
 installCargoTools() {
 	echo "[!] Installing cargo tools..."
 	source "$HOME/.cargo/env"
-	cargo install --locked tree-sitter-cli
 	cargo install --locked asm-lsp
 	cargo install --locked eza
 	cargo install --locked bat
@@ -637,12 +663,13 @@ reg rust         installRust           n ""                           "Rust/Carg
 reg go           installGo             y ""                           "Go toolchain"
 reg node         installNode           y ""                           "Node.js + npm globals"
 reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format, autopep8, isort (pinned)"
-reg cargo-tools  installCargoTools     n "rust"                       "tree-sitter, asm-lsp, eza, bat, ripgrep, git-delta"
+reg treesitter-cli installTreesitterCli n ""                          "tree-sitter CLI (prebuilt, no Rust needed)"
+reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta"
 reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
 reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
-reg nvim-plugins installNvimPlugins    n "neovim node plugins config cargo-tools" "Neovim plugins (headless PlugInstall/Coc/TS)"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/Coc/TS)"
 reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
 reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"
 reg ghidra       installGhidra         y "syspkgs-full"               "Ghidra"
@@ -655,9 +682,9 @@ reg network      installNetwork        y "docker"                     "Firewall 
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
-CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
 
-PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).
