@@ -189,7 +189,14 @@ installAlacritty() {
 # Node.js -> /usr/local (root) + npm globals (~/.npm-global). Needed for CoC.
 installNode() {
 	echo "[!] Installing Node.js + npm globals..."
-	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
+	# --yes is required: the installer prompts "[yN]" (defaulting to No) and
+	# reads the answer from /dev/tty, so it aborts outright when no terminal is
+	# attached and skips Node on a stray Enter when one is.
+	sudo bash -c "curl -sL install-node.vercel.app/lts | bash -s -- --yes"
+	if ! command -v node >/dev/null 2>&1; then
+		echo "[!] Node install failed — node not on PATH."
+		return 1
+	fi
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
