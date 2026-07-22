@@ -642,7 +642,7 @@ reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
 reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
-reg nvim-plugins installNvimPlugins    n "neovim node plugins config" "Neovim plugins (headless PlugInstall/Coc/TS)"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config cargo-tools" "Neovim plugins (headless PlugInstall/Coc/TS)"
 reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
 reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"
 reg ghidra       installGhidra         y "syspkgs-full"               "Ghidra"
