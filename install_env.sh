@@ -708,6 +708,10 @@ PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesit
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).
+# CAN_ROOT here is PROVISIONAL: `command -v sudo` proves the binary exists, not
+# that this user may use it (a locked corporate box has sudo installed but the
+# user is not in sudoers). It drives the informational header only; run_selection
+# re-validates with `sudo -v` before running anything that actually needs root.
 if [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; then CAN_ROOT=1; else CAN_ROOT=0; fi
 command -v apt-get >/dev/null 2>&1 && HAS_APT=1 || HAS_APT=0
 
@@ -743,7 +747,36 @@ resolve_deps() {
 
 run_selection() {
 	local resolved; resolved="$(resolve_deps "$1")"
-	local c rc skipped=() failed=()
+	local c rc needs_root=0 skipped=() failed=()
+
+	# Re-validate CAN_ROOT before printing the plan: the provisional value only
+	# knows sudo exists. Only probe when the selection actually needs root, so a
+	# pure user-space pick never triggers a password prompt.
+	#   `sudo -n true` succeeds non-interactively under NOPASSWD (and keeps
+	#     unattended runs working); note `sudo -v` FAILS under NOPASSWD, so it
+	#     cannot be the primary probe.
+	#   Falling back to `sudo -v </dev/tty` prompts a password-sudo user once and
+	#     validates. Reading from /dev/tty (not the script's stdin) keeps it from
+	#     swallowing menu input on a piped run and makes it fail fast with no tty.
+	# Both fail (not in sudoers, or no tty to prompt) -> CAN_ROOT=0, and the root
+	# components are skipped as "assumed already satisfied" instead of failing
+	# mid-run on `sudo apt...`.
+	for c in $resolved; do
+		[ "${COMP_ROOT[$c]}" = "y" ] && { needs_root=1; break; }
+	done
+	if [ "$needs_root" -eq 1 ] && [ "$(id -u)" -ne 0 ]; then
+		if command -v sudo >/dev/null 2>&1 && { sudo -n true 2>/dev/null || sudo -v </dev/tty; }; then
+			CAN_ROOT=1
+		else
+			CAN_ROOT=0
+			echo ""
+			echo "[!] Root components are selected but sudo could not be validated"
+			echo "    (not in sudoers, or no terminal for the password prompt)."
+			echo "    Those components will be skipped, assuming their system"
+			echo "    dependencies are already present."
+		fi
+	fi
+
 	echo ""
 	echo "[+] Plan (dependencies resolved, in order):"
 	for c in $resolved; do
