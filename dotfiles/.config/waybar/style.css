@@ -1,0 +1,132 @@
+* {
+    font-family: "Agave Nerd Font";
+    font-size: 13px;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: #282828;
+    color: #ebdbb2;
+}
+
+
+/* Workspaces */
+#workspaces button {
+    padding: 0 8px;
+    color: #a89984;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.25s ease;
+}
+
+#workspaces button.focused {
+    color: #ebdbb2;
+    border-bottom: 2px solid #d79921;
+}
+
+#workspaces button.urgent {
+    color: #fb4934;
+}
+
+#workspaces button:hover {
+    background-color: #3c3836;
+    color: #ebdbb2;
+}
+
+/* Right modules */
+#pulseaudio,
+#network,
+#clock,
+#memory,
+#battery,
+#custom-ip,
+#custom-docker,
+#custom-power {
+    padding: 0 12px;
+    color: #ebdbb2;
+}
+
+/* Separators between right modules */
+#pulseaudio,
+#network,
+#clock,
+#memory,
+#battery,
+#custom-ip,
+#custom-firewall,
+#custom-docker,
+#custom-hostname {
+    border-left: 1px solid #504945;
+}
+
+#custom-power {
+    color: #fb4934;
+    padding: 0 10px;
+    border-right: 1px solid #504945;
+}
+
+/* Module hover (only interactive modules) */
+#pulseaudio:hover,
+#custom-power:hover {
+    background-color: #3c3836;
+}
+
+/* Muted audio */
+#pulseaudio.muted {
+    color: #928374;
+}
+
+/* Network disconnected */
+#network.disconnected {
+    color: #928374;
+}
+
+/* Firewall + Docker icons — extra padding so single icons aren't collapsed */
+#custom-firewall,
+#custom-docker {
+    padding: 0 14px;
+    font-size: 15px;
+}
+
+/* Firewall + Docker status */
+#custom-firewall.on,
+#custom-docker.on {
+    color: #00d75f;
+}
+
+#custom-firewall.off,
+#custom-docker.off {
+    color: #fb4934;
+}
+
+#custom-firewall.unknown,
+#custom-docker.unknown {
+    color: #fe8019;
+}
+
+/* Battery states */
+#battery.warning {
+    color: #fe8019;
+}
+
+#battery.critical {
+    color: #fb4934;
+}
+
+#battery.charging {
+    color: #b8bb26;
+}
+
+/* Todo */
+#custom-todo {
+    padding: 0 12px;
+    color: #ebdbb2;
+    border-right: 1px solid #504945;
+}
+
+tooltip {
+    background-color: #3c3836;
+    border: 1px solid #504945;
+    color: #ebdbb2;
+}
