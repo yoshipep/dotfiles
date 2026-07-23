@@ -516,6 +516,18 @@ installConfigDeploy() {
 	fi
 }
 
+# Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
+installSway() {
+	echo "[!] Installing Sway desktop..."
+	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep grim slurp \
+		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
+		pipewire pipewire-pulse wireplumber
+	mkdir -p "$HOME/.config"
+	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
+}
+
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
 installNvimPlugins() {
 	echo "[!] Setting up Neovim plugins (headless)..."
@@ -699,12 +711,13 @@ reg lazydocker   installLazydocker     n "go"                         "lazydocke
 reg docker       installDocker         y ""                           "Docker CE"
 reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
 reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
+reg sway         installSway           y "syspkgs-core config font alacritty" "Sway desktop: WM, waybar, launcher, screenshot, portals"
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
-CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
 
-PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).
