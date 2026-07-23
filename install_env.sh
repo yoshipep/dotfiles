@@ -650,10 +650,29 @@ installNetwork() {
 # original pipeline order) so prerequisites run first.
 # ============================================================================
 
-declare -A COMP_FN COMP_ROOT COMP_DEPS COMP_DESC
+declare -A COMP_FN COMP_ROOT COMP_DEPS COMP_DESC COMP_CHECK
 
 reg() { # name fn root(y/n) deps desc
 	COMP_FN["$1"]="$2"; COMP_ROOT["$1"]="$3"; COMP_DEPS["$1"]="$4"; COMP_DESC["$1"]="$5"
+}
+
+# Optional post-install verification for components whose install function can
+# exit 0 while the real work failed. Register a check with check() and it runs
+# after the component; a non-zero return is reported like an install failure.
+# Components without a check are trusted on exit status alone (the default).
+check() { COMP_CHECK["$1"]="$2"; }
+
+# nvim-plugins runs headless nvim, which exits 0 even when PlugInstall/CocInstall
+# or a treesitter build fails -- exactly how the missing tree-sitter CLI hid for
+# a whole run. Assert the artifacts actually landed.
+checkNvimPlugins() {
+	local ok=0
+	command -v tree-sitter >/dev/null 2>&1 || { echo "  [check] tree-sitter CLI not on PATH"; ok=1; }
+	local nparser
+	nparser=$(ls "$HOME/.local/share/nvim/site/parser" 2>/dev/null | wc -l)
+	[ "$nparser" -ge 10 ] || { echo "  [check] only $nparser treesitter parsers built (expected >=10)"; ok=1; }
+	[ -n "$(ls "$HOME/.config/coc/extensions/node_modules" 2>/dev/null)" ] || { echo "  [check] no CoC extensions installed"; ok=1; }
+	return $ok
 }
 
 reg config       installConfigDeploy  n ""                           "Deploy all dotfiles (the floor)"
@@ -670,6 +689,7 @@ reg shell        installShell          y "syspkgs-core"               "zsh + oh-
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
 reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
 reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/Coc/TS)"
+check nvim-plugins checkNvimPlugins
 reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
 reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"
 reg ghidra       installGhidra         y "syspkgs-full"               "Ghidra"
@@ -747,6 +767,9 @@ run_selection() {
 		rc=$?
 		if [ "$rc" -ne 0 ]; then
 			echo "[!] FAILED: $c (exit $rc)"
+			failed+=("$c")
+		elif [ -n "${COMP_CHECK[$c]:-}" ] && ! "${COMP_CHECK[$c]}"; then
+			echo "[!] FAILED (post-check): $c installed but its artifacts are missing"
 			failed+=("$c")
 		fi
 	done
