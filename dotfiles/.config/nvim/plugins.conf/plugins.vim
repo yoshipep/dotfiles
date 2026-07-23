@@ -48,6 +48,34 @@ let g:mkdp_auto_close = 0
 let g:mkdp_auto_start = 0
 nmap <leader>mp <Plug>MarkdownPreviewToggle
 
+" --- Sphinx live preview (~/scripts/sphinx-serve.sh) ---
+" Bottom terminal running sphinx-autobuild for the project in nvim's cwd; serves,
+" live-reloads, opens the browser. Ctrl-C in the pane to stop. Height is re-asserted
+" on VimResized so collapsing/zooming the tmux pane keeps it at 15 lines.
+command! SphinxServe call <SID>SphinxServe()
+
+function! s:SphinxServe() abort
+  botright 15split
+  setlocal winfixheight
+  terminal sphinx-serve.sh
+  let b:sphinx_serve = 1
+endfunction
+
+function! s:SphinxFixHeight() abort
+  for w in range(1, winnr('$'))
+    if getbufvar(winbufnr(w), 'sphinx_serve', 0)
+      call nvim_win_set_height(win_getid(w), 15)
+    endif
+  endfor
+endfunction
+
+augroup SphinxServeHeight
+  autocmd!
+  autocmd VimResized * call <SID>SphinxFixHeight()
+augroup END
+
+nnoremap <leader>sp :SphinxServe<CR>
+
 " --- C/C++ ---
 let g:c_syntax_for_h = 1
 
