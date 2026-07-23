@@ -39,6 +39,15 @@ let g:isort_command = 'isort'
 let g:vimtex_view_general_viewer = 'evince'
 let g:vimtex_compiler_method = 'latexmk'
 
+" --- markdown-preview.nvim ---
+" One browser tab that follows the active markdown buffer and holds the last
+" markdown (stays open) when the active buffer is not markdown.
+let g:mkdp_combine_preview = 1
+let g:mkdp_combine_preview_auto_refresh = 1
+let g:mkdp_auto_close = 0
+let g:mkdp_auto_start = 0
+nmap <leader>mp <Plug>MarkdownPreviewToggle
+
 " --- C/C++ ---
 let g:c_syntax_for_h = 1
 
