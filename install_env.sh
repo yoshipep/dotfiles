@@ -81,18 +81,21 @@ EOF
 	echo
 }
 
-checkPackages() {
-	local MODE="${1:-full}"
-	cd "$HOME"
-	echo "[!] Installing required packages..."
+# ============================================================================
+# PACKAGE COMPONENTS
+#
+# Each install* function is self-contained so the component menu (bottom of the
+# file) can select it individually. syspkgs-* are apt-only (Debian/Ubuntu) by
+# design; the user-space toolchain/tool components work on any distro (and
+# assume the needed system -dev libs are already present when apt isn't used).
+# ============================================================================
 
-	# Add repos/PPAs before apt update
+# apt: core system packages (Debian/Ubuntu only). Root required.
+installSyspkgsCore() {
+	echo "[!] Installing core system packages (apt)..."
 	if [[ "$DISTRO" == "ubuntu" ]]; then
 		$INSTALL software-properties-common
 		sudo add-apt-repository -y ppa:git-core/ppa
-		if [[ "$MODE" == "full" ]]; then
-			sudo add-apt-repository -y ppa:phoerious/keepassxc
-		fi
 	fi
 	sudo apt update
 	sudo apt upgrade -y
@@ -108,86 +111,152 @@ checkPackages() {
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
 		unzip fontconfig
 	)
+	$INSTALL "${COMMON_PKGS[@]}"
+}
 
-	if [[ "$MODE" == "full" ]]; then
-		local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
-		local FULL_PKGS=(
-			keepassxc perl gawk socat
-			python3-virtualenvwrapper ipython3
-			libmpfr-dev libgmp-dev libmpc-dev
-			flex bison autoconf automake
-			libreadline-dev libncurses-dev python3-dev
-			libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
-			ulogd2 ca-certificates gnupg texlive-full
-			"$openjdk"
-		)
-		$INSTALL "${COMMON_PKGS[@]}" "${FULL_PKGS[@]}"
-	else
-		$INSTALL "${COMMON_PKGS[@]}"
+# apt: full-mode-only system packages (texlive, gdb build-deps, java, ulogd2...). Root required.
+installSyspkgsFull() {
+	echo "[!] Installing full-mode system packages (apt)..."
+	if [[ "$DISTRO" == "ubuntu" ]]; then
+		sudo add-apt-repository -y ppa:phoerious/keepassxc
+		sudo apt update
 	fi
+	local openjdk=$(apt-cache search openjdk | awk '{print $1}' | grep -oP '^openjdk-\d{1,2}-jdk$' | sort -V | tail -n 1)
+	local FULL_PKGS=(
+		keepassxc perl gawk socat
+		python3-virtualenvwrapper ipython3
+		libmpfr-dev libgmp-dev libmpc-dev
+		flex bison autoconf automake
+		libreadline-dev libncurses-dev python3-dev
+		libexpat-dev zlib1g-dev libbabeltrace-dev libipt-dev
+		ulogd2 ca-certificates gnupg texlive-full
+		"$openjdk"
+	)
+	$INSTALL "${FULL_PKGS[@]}"
+}
 
-	# Install Python CLI tools via pipx (isolated environments).
-	# clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
-	# binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
-	# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
-	# apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
-	# parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
-	# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
-	# Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
+# pipx: Python CLI tools + pinned clangd/clang-format. User-space.
+# clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
+# binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
+# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
+# apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
+# parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
+# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
+# Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
+installPipxTools() {
+	echo "[!] Installing pipx tools (clangd/clang-format pinned)..."
 	local LLVM_PIN="19.1.7"
 	pipx install autopep8 isort "clangd==${LLVM_PIN}" "clang-format==${LLVM_PIN}"
+}
 
-	# Go (both modes - needed for lazydocker and other Go tools)
-	GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
+# Go toolchain -> /usr/local (root). Needed for lazydocker and other Go tools.
+installGo() {
+	echo "[!] Installing Go toolchain..."
+	local GO_VERSION=$(curl -s https://go.dev/VERSION?m=text | head -1)
 	curl -L -o /tmp/go.tar.gz "https://go.dev/dl/${GO_VERSION}.linux-amd64.tar.gz"
 	sudo tar -C /usr/local -xzf /tmp/go.tar.gz
 	rm /tmp/go.tar.gz
 	export PATH="/usr/local/go/bin:$PATH"
+}
 
-	# Rust and Cargo (both modes - needed for tree-sitter, asm-lsp, and alacritty)
+# Rust/Cargo via rustup. User-space. Needed for tree-sitter, asm-lsp, alacritty, eza...
+installRust() {
+	echo "[!] Installing Rust/Cargo toolchain..."
 	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 	source "$HOME/.cargo/env"
 	rustup component add rust-analyzer
-	cargo install --locked tree-sitter-cli
-	cargo install --locked asm-lsp
-	cargo install --locked alacritty --features=x11,wayland
+}
 
-	# Node.js (both modes - needed for CoC)
-	sudo bash -c "curl -sL install-node.vercel.app/lts | bash"
+# tree-sitter CLI -> ~/.local/bin (already on PATH via .zshenv). No root, no Rust.
+# nvim-treesitter is pinned to branch main, which *builds* parsers with this CLI,
+# so nvim-plugins needs it. Taking the prebuilt binary instead of `cargo install
+# tree-sitter-cli` keeps the minimal Neovim path free of the whole Rust toolchain.
+installTreesitterCli() {
+	echo "[!] Installing tree-sitter CLI (prebuilt)..."
+	local LOCATION
+	LOCATION=$(curl -s https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest |
+		grep -Eo '"browser_download_url":\s*"https://github.com/tree-sitter/tree-sitter/releases/download/[^"]+/tree-sitter-linux-x64\.gz"' |
+		awk -F'"' '{ print $4 }')
+	if [ -z "$LOCATION" ]; then
+		echo "[!] Could not resolve a tree-sitter release URL (rate-limited or asset renamed)."
+		return 1
+	fi
+	mkdir -p "$HOME/.local/bin"
+	curl -L -o /tmp/tree-sitter.gz "$LOCATION" || return 1
+	gunzip -f /tmp/tree-sitter.gz || return 1
+	install -m 755 /tmp/tree-sitter "$HOME/.local/bin/tree-sitter"
+	rm -f /tmp/tree-sitter
+	export PATH="$HOME/.local/bin:$PATH"
+	if ! command -v tree-sitter >/dev/null 2>&1; then
+		echo "[!] tree-sitter not on PATH after install."
+		return 1
+	fi
+}
+
+# cargo CLI tools: asm-lsp, eza, bat, ripgrep, git-delta. User-space. Depends: rust.
+# tree-sitter is NOT here — it comes prebuilt from treesitter-cli.
+installCargoTools() {
+	echo "[!] Installing cargo tools..."
+	source "$HOME/.cargo/env"
+	cargo install --locked asm-lsp
+	cargo install --locked eza
+	cargo install --locked bat
+	cargo install --locked ripgrep
+	cargo install --locked git-delta
+}
+
+# Alacritty (own component: GUI-only, needs system -dev libs). User-space build. Depends: rust.
+installAlacritty() {
+	echo "[!] Building Alacritty..."
+	source "$HOME/.cargo/env"
+	cargo install --locked alacritty --features=x11,wayland
+}
+
+# Node.js -> /usr/local (root) + npm globals (~/.npm-global). Needed for CoC.
+installNode() {
+	echo "[!] Installing Node.js + npm globals..."
+	# --yes is required: the installer prompts "[yN]" (defaulting to No) and
+	# reads the answer from /dev/tty, so it aborts outright when no terminal is
+	# attached and skips Node on a stray Enter when one is.
+	sudo bash -c "curl -sL install-node.vercel.app/lts | bash -s -- --yes"
+	if ! command -v node >/dev/null 2>&1; then
+		echo "[!] Node install failed — node not on PATH."
+		return 1
+	fi
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
 	npm i -g neovim yarn bash-language-server prettier
+}
 
-	if [[ "$MODE" == "full" ]]; then
-		echo "[+] Installing FULL mode extras (npm globals, VirtualBox, Docker)..."
+# VirtualBox (apt via Oracle repo). Root, full-mode.
+installVirtualBox() {
+	echo "[!] Installing VirtualBox..."
+	wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
+	# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
+	local VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+	[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
+	echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
+		sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
+	sudo apt update
+	local VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
+	$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
+}
 
-
-		# VirtualBox setup (separate: requires repo before install)
-		wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
-		# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
-		VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
-		[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
-		echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
-			sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
-		sudo apt update
-		VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
-		$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
-
-		# Docker setup (separate: requires repo before install)
-		for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
-		sudo install -m 0755 -d /etc/apt/keyrings
-		sudo curl -fsSL "https://download.docker.com/linux/${DISTRO}/gpg" -o /etc/apt/keyrings/docker.asc
-		sudo chmod a+r /etc/apt/keyrings/docker.asc
-		echo \
-		"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DISTRO} \
-		$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-		sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-		sudo apt update
-		$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-		sudo usermod -a -G docker "$USER"
-
-	fi
+# Docker CE (apt via Docker repo). Root, full-mode.
+installDocker() {
+	echo "[!] Installing Docker..."
+	for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg 2>/dev/null; done
+	sudo install -m 0755 -d /etc/apt/keyrings
+	sudo curl -fsSL "https://download.docker.com/linux/${DISTRO}/gpg" -o /etc/apt/keyrings/docker.asc
+	sudo chmod a+r /etc/apt/keyrings/docker.asc
+	echo \
+	"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/${DISTRO} \
+	$(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+	sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+	sudo apt update
+	$INSTALL docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+	sudo usermod -a -G docker "$USER"
 }
 
 installShell() {
@@ -213,13 +282,11 @@ installShell() {
 	# Non-interactive: generate ~/.fzf.zsh with bindings+completion, but don't touch
 	# rc files (repo .zshrc sources ~/.fzf.zsh itself and is copied over later anyway).
 	~/.fzf/install --key-bindings --completion --no-update-rc
-
-	cargo install --locked eza
 }
 
-installCommonTools() {
-	echo "[!] Installing: neovim, batcat, ripgrep"
-	read -n 1 -r -s -p $'Press enter to continue...\n'
+# Neovim binary -> /opt/neovim (root) + symlink to /usr/local/bin/nvim.
+installNeovim() {
+	echo "[!] Installing: neovim"
 	pushd /tmp > /dev/null
 
 	sudo mkdir -p /opt/neovim
@@ -234,17 +301,11 @@ installCommonTools() {
 	sudo ln -sf /opt/neovim/bin/nvim /usr/local/bin/nvim
 
 	popd > /dev/null
-	cargo install --locked bat
-	cargo install --locked ripgrep
 }
 
-installExtras() {
-	echo "[!] Installing: ghidra, git-delta, lazydocker, GDB, GEF, GEP"
-	read -n 1 -r -s -p $'Press enter to continue...\n'
-	source "$HOME/.cargo/env"
-	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
-
-	# Ghidra
+# Ghidra -> /opt/ghidra (root).
+installGhidra() {
+	echo "[!] Installing: ghidra"
 	pushd /tmp > /dev/null
 	sudo mkdir -p /opt/ghidra
 	LOCATION=$(curl -s https://api.github.com/repos/NationalSecurityAgency/ghidra/releases/latest |
@@ -258,11 +319,18 @@ installExtras() {
 	rm ghidra.zip
 	sudo ln -sf /opt/ghidra/ghidraRun /usr/local/bin/ghidra
 	popd > /dev/null
+}
 
-	cargo install --locked git-delta
+# lazydocker via go install. Depends: go.
+installLazydocker() {
+	echo "[!] Installing: lazydocker"
+	export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"
 	go install github.com/jesseduffield/lazydocker@latest
+}
 
-	# GDB build from source with patches and multi-arch support
+# GDB built from source (multi-arch + hex-escape patch) -> /opt/gdb. Depends: syspkgs-full.
+installGdb() {
+	echo "[!] Building GDB from source..."
 	mkdir -p "$HOME/patches"
 	cp -r "$REPO_DIR/patches/"* "$HOME/patches/"
 	sudo mkdir -p /opt/gdb
@@ -272,7 +340,7 @@ installExtras() {
 	# Master drifts constantly (the escape-printing code even moved valprint.c -> char-print.c),
 	# which is why floating on master kept breaking the patch. To upgrade: bump GDB_TAG, then
 	# regenerate patches/gdb.patch against the new tag.
-	GDB_TAG="gdb-16.3-release"
+	local GDB_TAG="gdb-16.3-release"
 	git clone --depth 1 --branch "$GDB_TAG" https://sourceware.org/git/binutils-gdb.git .
 	git apply --3way "$HOME/patches/gdb.patch"
 	CFLAGS="-O2" ./configure --enable-targets=all \
@@ -284,8 +352,11 @@ installExtras() {
 	make -j "$(nproc)"
 	sudo make install
 	popd > /dev/null
+}
 
-	# GEF and GEP (GDB plugins)
+# GEF + GEP (GDB plugins). Depends: gdb.
+installGefGep() {
+	echo "[!] Installing GEF + GEP..."
 	cd "$HOME"
 	sudo cpan Unicode::GCString
 	sudo cpan App::cpanminus
@@ -294,8 +365,8 @@ installExtras() {
 	# Fetch the latest GEF into a stable, version-less filename that ~/.gdbinit sources
 	# (see dotfiles/.gdbinit). We avoid the blah.cat installer because it writes a
 	# version-stamped filename (~/.gef-<tag>.py) and a matching source line into ~/.gdbinit
-	# that importCFG later overwrites when it copies the repo's .gdbinit.
-	GEF_FILE="$HOME/.gef-gdb.py"
+	# that installConfigDeploy later overwrites when it copies the repo's .gdbinit.
+	local GEF_FILE="$HOME/.gef-gdb.py"
 	curl -fsSL https://raw.githubusercontent.com/hugsy/gef/main/gef.py -o "$GEF_FILE"
 	# Opcode spacing tweak: put a space between opcode bytes. Anchored on the code
 	# expression (not a line number), so it keeps working across GEF version bumps.
@@ -305,7 +376,7 @@ installExtras() {
 		echo "[!] Warning: GEF opcode expression not found; spacing tweak not applied (upstream may have changed)"
 	fi
 	git clone --depth 1 https://github.com/lebr0nli/GEP.git "$HOME/.local/share/GEP"
-	# --skip-gdbinit: the repo's .gdbinit already sources GEP (importCFG would clobber
+	# --skip-gdbinit: the repo's .gdbinit already sources GEP (installConfigDeploy would clobber
 	# any line GEP appends here anyway).
 	"$HOME/.local/share/GEP/install.sh" --skip-gdbinit
 }
@@ -405,36 +476,20 @@ installFont() {
 	fc-cache -f
 }
 
-importCFG() {
+# Config deploy (TIER-1 FLOOR): copy all dotfiles. No tools required, no root.
+installConfigDeploy() {
 	local MODE="${1:-full}"
-	echo "[!] Importing configuration"
-
+	echo "[!] Deploying configuration files"
 	mkdir -p "$HOME/repos"
-	# ============================================================================
-	# STAGE 1: Neovim config (required early for plugin setup)
-	# ============================================================================
+
+	# Neovim config + snippet symlinks
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-
-	# Create snippet symlinks (required for nvim plugin setup)
 	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/S.snippets"
 
-	# ============================================================================
-	# STAGE 2: Neovim plugin setup (both modes)
-	# ============================================================================
-	/opt/neovim/bin/nvim --headless +PlugInstall +qa
-	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
-	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
-	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
-	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
-	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
-
-	# ============================================================================
-	# STAGE 3: Dotfiles (both modes - after plugin setup)
-	# ============================================================================
+	# Shell / git / editor / claude / alacritty dotfiles
 	cd "$HOME"
 	cp "$REPO_DIR/dotfiles/.zshenv" "$HOME/"
 	cp "$REPO_DIR/dotfiles/.zshrc" "$HOME/"
@@ -459,19 +514,24 @@ importCFG() {
 		cp -r "$REPO_DIR/scripts/"* "$HOME/scripts/"
 		chmod +x "$HOME/scripts/"*
 	fi
+}
 
-	if [[ "$MODE" != "full" ]]; then
-		echo "[+] MINIMAL installation complete!"
-		echo ""
-		echo "Next steps:"
-		echo "  1. Restart your shell or run: source ~/.zshrc"
-		echo "  2. Open Neovim and themes will be loaded automatically"
-		echo "  3. Change theme anytime by editing ~/.vim_theme"
-		return
-	fi
+# Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
+installNvimPlugins() {
+	echo "[!] Setting up Neovim plugins (headless)..."
+	/opt/neovim/bin/nvim --headless +PlugInstall +qa
+	/opt/neovim/bin/nvim --headless +CocUpdate +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
+	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
+	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
+	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
+}
 
+# Network: firewall + static IP + services + docker compose (root, full). Depends: docker.
+installNetwork() {
 	# ============================================================================
-	# FULL MODE ONLY: NETWORK CONFIGURATION
+	# NETWORK CONFIGURATION
 	# ============================================================================
 	echo ""
 	echo "[+] Configuring network settings..."
@@ -581,72 +641,193 @@ importCFG() {
 
 }
 
-echo "[!] Installation script by Josep Comes. This script is intended to work with apt"
-echo ""
-echo "[?] Select installation mode:"
-echo "    1) FULL - Complete development environment (recommended for personal systems)"
-echo "       Includes: Full shell setup, Neovim, GDB, Ghidra, Docker, firewall, VMs, all tools"
-echo ""
-echo "    2) MINIMAL - Essential dotfiles only (for corporate/restricted environments)"
-echo "       Includes: Full shell setup, Neovim, Font, basic tools"
-echo "       Skips: GDB build, Docker, firewall, TeX Live, Ghidra, system services"
-echo ""
-read -p "Enter your choice [1-2] (default: 1): " install_mode
+# ============================================================================
+# COMPONENT REGISTRY + SELECTION MENU
+#
+# Each component maps to one install function, its dependencies, and whether it
+# needs root. The menu offers presets or a custom pick-list; dependencies are
+# auto-included, and selected components always run in CANON_ORDER (the proven
+# original pipeline order) so prerequisites run first.
+# ============================================================================
 
-case "$install_mode" in
-	2)
-		INSTALL_MODE="minimal"
-		echo "[+] MINIMAL installation selected"
+declare -A COMP_FN COMP_ROOT COMP_DEPS COMP_DESC COMP_CHECK
+
+reg() { # name fn root(y/n) deps desc
+	COMP_FN["$1"]="$2"; COMP_ROOT["$1"]="$3"; COMP_DEPS["$1"]="$4"; COMP_DESC["$1"]="$5"
+}
+
+# Optional post-install verification for components whose install function can
+# exit 0 while the real work failed. Register a check with check() and it runs
+# after the component; a non-zero return is reported like an install failure.
+# Components without a check are trusted on exit status alone (the default).
+check() { COMP_CHECK["$1"]="$2"; }
+
+# nvim-plugins runs headless nvim, which exits 0 even when PlugInstall/CocInstall
+# or a treesitter build fails -- exactly how the missing tree-sitter CLI hid for
+# a whole run. Assert the artifacts actually landed.
+checkNvimPlugins() {
+	local ok=0
+	command -v tree-sitter >/dev/null 2>&1 || { echo "  [check] tree-sitter CLI not on PATH"; ok=1; }
+	local nparser
+	nparser=$(ls "$HOME/.local/share/nvim/site/parser" 2>/dev/null | wc -l)
+	[ "$nparser" -ge 10 ] || { echo "  [check] only $nparser treesitter parsers built (expected >=10)"; ok=1; }
+	[ -n "$(ls "$HOME/.config/coc/extensions/node_modules" 2>/dev/null)" ] || { echo "  [check] no CoC extensions installed"; ok=1; }
+	return $ok
+}
+
+reg config       installConfigDeploy  n ""                           "Deploy all dotfiles (the floor)"
+reg syspkgs-core installSyspkgsCore    y ""                           "apt: core system packages"
+reg syspkgs-full installSyspkgsFull    y ""                           "apt: full extras (texlive, gdb deps, java)"
+reg rust         installRust           n ""                           "Rust/Cargo (rustup)"
+reg go           installGo             y ""                           "Go toolchain"
+reg node         installNode           y ""                           "Node.js + npm globals"
+reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format, autopep8, isort (pinned)"
+reg treesitter-cli installTreesitterCli n ""                          "tree-sitter CLI (prebuilt, no Rust needed)"
+reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta"
+reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
+reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
+reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
+reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/Coc/TS)"
+check nvim-plugins checkNvimPlugins
+reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
+reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"
+reg ghidra       installGhidra         y "syspkgs-full"               "Ghidra"
+reg gdb          installGdb            y "syspkgs-full"               "GDB from source (multi-arch)"
+reg gef-gep      installGefGep         y "gdb"                        "GEF + GEP (gdb plugins)"
+reg lazydocker   installLazydocker     n "go"                         "lazydocker"
+reg docker       installDocker         y ""                           "Docker CE"
+reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
+reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
+reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
+
+# Canonical execution order (mirrors the original FULL pipeline).
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
+
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
+PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
+
+# Capability detection (Debian/Ubuntu apt-based by design).
+if [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; then CAN_ROOT=1; else CAN_ROOT=0; fi
+command -v apt-get >/dev/null 2>&1 && HAS_APT=1 || HAS_APT=0
+
+# A component is runnable here if we have the privilege/tooling it needs.
+comp_available() {
+	local c="$1"
+	[ "${COMP_ROOT[$c]}" = "y" ] && [ "$CAN_ROOT" -eq 0 ] && return 1
+	case "$c" in
+		syspkgs-core|syspkgs-full|docker|virtualbox|network|removesnap)
+			[ "$HAS_APT" -eq 1 ] || return 1 ;;
+	esac
+	return 0
+}
+
+# Expand a selection with all transitive deps, emitted in canonical order.
+resolve_deps() {
+	local -A seen=()
+	local queue=($1) c d
+	while [ ${#queue[@]} -gt 0 ]; do
+		c="${queue[0]}"; queue=("${queue[@]:1}")
+		[ -n "${seen[$c]:-}" ] && continue
+		seen[$c]=1
+		for d in ${COMP_DEPS[$c]}; do
+			[ -n "${seen[$d]:-}" ] || queue+=("$d")
+		done
+	done
+	local out=() x
+	for x in "${CANON_ORDER[@]}"; do
+		[ -n "${seen[$x]:-}" ] && out+=("$x")
+	done
+	echo "${out[*]}"
+}
+
+run_selection() {
+	local resolved; resolved="$(resolve_deps "$1")"
+	local c rc skipped=() failed=()
+	echo ""
+	echo "[+] Plan (dependencies resolved, in order):"
+	for c in $resolved; do
+		if comp_available "$c"; then
+			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
+		else
+			skipped+=("$c")
+			printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+		fi
+	done
+	[ ${#skipped[@]} -gt 0 ] && echo "" && \
+		echo "[!] ${#skipped[@]} component(s) will be skipped (need root/apt); assuming already satisfied."
+	echo ""
+	read -r -p "Proceed? (y/N): " ok
+	[[ "$ok" =~ ^[Yy]$ ]] || { echo "[*] Aborted."; exit 0; }
+	for c in $resolved; do
+		comp_available "$c" || { echo "[*] Skipping $c (missing capability)"; continue; }
+		echo ""
+		echo "==== $c : ${COMP_DESC[$c]} ===="
+		"${COMP_FN[$c]}"
+		rc=$?
+		if [ "$rc" -ne 0 ]; then
+			echo "[!] FAILED: $c (exit $rc)"
+			failed+=("$c")
+		elif [ -n "${COMP_CHECK[$c]:-}" ] && ! "${COMP_CHECK[$c]}"; then
+			echo "[!] FAILED (post-check): $c installed but its artifacts are missing"
+			failed+=("$c")
+		fi
+	done
+	echo ""
+	# A component that exits non-zero is reported here rather than being lost in
+	# the scrollback. Note this only catches failures the function actually
+	# returns: steps whose last command succeeds while the work inside it failed
+	# (headless nvim always exits 0, for instance) still need a post-check.
+	if [ ${#failed[@]} -gt 0 ]; then
+		echo "[!] ${#failed[@]} component(s) FAILED:"
+		for c in "${failed[@]}"; do
+			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
+		done
+		echo ""
+		echo "[!] Fix the cause, then re-run just those components (menu option 4)."
+		return 1
+	fi
+	echo "[+] Done. Restart your shell (or: source ~/.zshrc)."
+}
+
+# ---------------------------------------------------------------------------
+# Menu
+# ---------------------------------------------------------------------------
+echo "[!] Installation script by Josep Comes (Debian/Ubuntu, apt-based)."
+echo ""
+[ "$CAN_ROOT" -eq 1 ] && echo "[*] root: available" || echo "[*] root: NONE — apt/system components will be skipped"
+[ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/vbox/network unavailable on this box"
+echo ""
+echo "[?] Choose what to install:"
+echo "    1) personal  - full personal environment (everything)"
+echo "    2) dev-core  - shell + editor + tmux + cargo tools (corporate-friendly)"
+echo "    3) config    - deploy dotfiles only (no installs)"
+echo "    4) custom    - pick components individually"
+echo ""
+read -r -p "Enter choice [1-4] (default: 1): " menu_choice
+
+case "$menu_choice" in
+	2) SELECTION="$PRESET_DEVCORE" ;;
+	3) SELECTION="config" ;;
+	4)
+		echo ""
+		echo "[?] Available components (dependencies are added automatically):"
+		declare -a MENU_IDX
+		i=1
+		for c in "${CANON_ORDER[@]}"; do
+			MENU_IDX[$i]="$c"
+			avail=""; comp_available "$c" || avail="   [unavailable here]"
+			printf "   %2d) %-13s %s%s\n" "$i" "$c" "${COMP_DESC[$c]}" "$avail"
+			i=$((i + 1))
+		done
+		echo ""
+		read -r -p "Enter numbers (space-separated): " picks
+		SELECTION=""
+		for n in $picks; do
+			[ -n "${MENU_IDX[$n]:-}" ] && SELECTION="$SELECTION ${MENU_IDX[$n]}"
+		done
 		;;
-	*)
-		INSTALL_MODE="full"
-		echo "[+] FULL installation selected"
-		;;
+	*) SELECTION="$PRESET_PERSONAL" ;;  # 1 or empty (default) -> full personal env
 esac
 
-echo ""
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: alacritty, tmux, tmuxinator"
-	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Editor: neovim"
-	echo "[+] Tools: batcat, ripgrep, git-delta, lazydocker"
-	echo "[+] Extras: ghidra"
-	echo "[+] Font: 0xProto"
-	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
-	echo "[+] Build tools: Go, Rust/Cargo, TeX Live, GDB from source"
-	echo "[+] System: Firewall, network services, Docker, VirtualBox"
-else
-	echo "[!] The following tools will be installed:"
-	echo "[+] Terminal: alacritty, tmux, tmuxinator"
-	echo "[+] Shell: zsh, oh my zsh, fzf, eza"
-	echo "[+] Editor: neovim"
-	echo "[+] Tools: batcat, ripgrep"
-	echo "[+] Font: 0xProto"
-	echo "[+] Plugins: powerlevel10k, zsh-autosuggestions, vim-plug, coc"
-	echo "[+] Themes: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox"
-	echo "[+] Build tools: Go, Rust/Cargo, Node.js"
-fi
-read -n 1 -r -s -p $'Press enter to continue...\n'
-
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	removeSnap
-else
-	echo ""
-	read -r -p "[?] Remove snap from system? (y/N): " snap_choice
-	if [[ "$snap_choice" =~ ^[Yy]$ ]]; then
-		removeSnap
-	fi
-fi
-
-checkPackages "$INSTALL_MODE"
-installShell
-installCommonTools
-if [[ "$INSTALL_MODE" == "full" ]]; then
-	installExtras
-fi
-installFont
-installPlugins
-selectTheme
-importCFG "$INSTALL_MODE"
+run_selection "$SELECTION"

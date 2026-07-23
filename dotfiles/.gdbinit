@@ -39,6 +39,14 @@ end
 
 # GEF (installed to a stable filename by install_env.sh) and GEP.
 # Sourced here rather than relying on the installers' own ~/.gdbinit edits,
-# because importCFG copies this file over ~/.gdbinit and would clobber them.
-source ~/.gef-gdb.py
-source ~/.local/share/GEP/gdbinit-gep.py
+# because installConfigDeploy copies this file over ~/.gdbinit and would clobber
+# them. Guarded so this .gdbinit stays error-free on a box where GEF/GEP aren't
+# installed (e.g. a config-only deploy with a system gdb) — same graceful-
+# degradation idea as .zshrc.
+python
+import os, gdb
+for _f in ("~/.gef-gdb.py", "~/.local/share/GEP/gdbinit-gep.py"):
+    _p = os.path.expanduser(_f)
+    if os.path.exists(_p):
+        gdb.execute("source " + _p)
+end
