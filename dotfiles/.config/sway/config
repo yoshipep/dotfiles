@@ -132,9 +132,9 @@ mode $session_control {
 bindsym $mod+Shift+p mode $session_control
 
 # Screenshot — grim captures, swappy opens an editor to annotate then save/copy.
-# region: $mod+x    fullscreen: Ctrl+Shift+x
+# region: $mod+x    fullscreen: Print   (Ctrl+Shift+x left free for tmux zoom)
 bindsym $mod+x exec grim -g "$(slurp)" - | swappy -f -
-bindsym Ctrl+Shift+x exec grim - | swappy -f -
+bindsym Print exec grim - | swappy -f -
 
 # Lock
 bindsym $mod+l exec swaylock -c 000000
