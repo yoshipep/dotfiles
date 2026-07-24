@@ -712,7 +712,7 @@ reg lazydocker   installLazydocker     n "go"                         "lazydocke
 reg docker       installDocker         y ""                           "Docker CE"
 reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
 reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
-reg sway         installSway           y "syspkgs-core config font alacritty shell" "Sway desktop: WM, waybar, launcher, screenshot, portals"
+reg sway         installSway           y "syspkgs-core config font alacritty plugins" "Sway desktop: WM, waybar, launcher, screenshot, portals"
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
