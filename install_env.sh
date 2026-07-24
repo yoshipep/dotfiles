@@ -519,7 +519,7 @@ installConfigDeploy() {
 # Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
 installSway() {
 	echo "[!] Installing Sway desktop..."
-	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep grim slurp swappy \
+	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep grim slurp \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
