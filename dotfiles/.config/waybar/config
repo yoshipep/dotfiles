@@ -4,8 +4,12 @@
     "height": 30,
 
     "modules-left": ["sway/workspaces", "custom/todo"],
-    "modules-center": [],
+    "modules-center": ["sway/mode"],
     "modules-right": ["memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
+
+    "sway/mode": {
+        "format": " {} "
+    },
 
     "custom/todo": {
         "exec": "$HOME/.config/waybar/scripts/todo/todo.sh",
