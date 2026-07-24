@@ -526,6 +526,7 @@ installSway() {
 	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
 }
 
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
