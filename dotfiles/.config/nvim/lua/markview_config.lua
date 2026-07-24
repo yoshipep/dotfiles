@@ -1,6 +1,6 @@
 local M = {}
 
-local function configure(direction)
+local function configure()
   -- Force every built-in reference-definition site rule to use our purple,
   -- keeping each site's default icon (markview deep-merges these by pattern key).
   local ref_icon = "\239\133\140 "
@@ -72,9 +72,11 @@ local function configure(direction)
 
   require('markview').setup({
     preview = {
-      enable = false,
+      enable = true,
       icon_provider = "devicons",
-      splitview_winopts = { split = direction },
+      modes = { "n", "i", "c" },
+      hybrid_modes = { "i" },
+      linewise_hybrid_mode = true,
     },
     markdown = {
       block_quotes = {
@@ -325,16 +327,6 @@ local function configure(direction)
   vim.api.nvim_set_hl(0, "MarkviewCheckboxCheckedScope", { fg = "#2f7dff", bold = true })
 end
 
-configure("right")
-
-function M.vsplit()
-  configure("right")
-  vim.cmd("Markview splitToggle")
-end
-
-function M.hsplit()
-  configure("above")
-  vim.cmd("Markview splitToggle")
-end
+configure()
 
 return M
