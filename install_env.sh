@@ -105,7 +105,7 @@ installSyspkgsCore() {
 		build-essential git curl wget
 		python3-pip pipx "$PYTHON_VENV" python3-pynvim
 		htop libclang-dev
-		wl-clipboard xclip flameshot
+		wl-clipboard xclip
 		shellcheck tmux tmuxinator universal-ctags
 		libssl-dev pkg-config
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
@@ -519,7 +519,7 @@ installConfigDeploy() {
 # Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
 installSway() {
 	echo "[!] Installing Sway desktop..."
-	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep \
+	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
