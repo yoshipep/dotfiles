@@ -527,6 +527,11 @@ installSway() {
 	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
+	# alacritty is cargo-installed (~/.cargo/bin), which a display-manager-launched
+	# Sway session does NOT put on PATH (environment.d isn't honored for the bare
+	# sway.desktop session), so `exec alacritty` in the config can't find it. Symlink
+	# it where the session PATH always looks so the terminal keybind works.
+	[ -x "$HOME/.cargo/bin/alacritty" ] && sudo ln -sf "$HOME/.cargo/bin/alacritty" /usr/local/bin/alacritty
 }
 
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
