@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INSTALL="sudo apt install -y"
+INSTALL="sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt install -y"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Detect distro (ubuntu or debian)
@@ -98,7 +98,7 @@ installSyspkgsCore() {
 		sudo add-apt-repository -y ppa:git-core/ppa
 	fi
 	sudo apt update
-	sudo apt upgrade -y
+	sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt upgrade -y
 
 	local PYTHON_VENV="python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
 	local COMMON_PKGS=(
