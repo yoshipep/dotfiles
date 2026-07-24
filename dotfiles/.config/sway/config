@@ -131,10 +131,10 @@ mode $session_control {
 }
 bindsym $mod+Shift+p mode $session_control
 
-# Screenshot — grim -> save to ~/Pictures + clipboard (swappy is not in Ubuntu 24.04).
-# region: $mod+x    fullscreen: Print   (Ctrl+Shift+x left free for tmux zoom)
-bindsym $mod+x exec mkdir -p ~/Pictures && grim -g "$(slurp)" - | tee ~/Pictures/$(date +%F_%H%M%S).png | wl-copy
-bindsym Print exec mkdir -p ~/Pictures && grim - | tee ~/Pictures/$(date +%F_%H%M%S).png | wl-copy
+# Screenshot — flameshot (works on sway via xdg-desktop-portal-wlr + sway-portals.conf).
+# region: $mod+x = gui (annotate + save-as)   fullscreen: Print = clipboard + ~/Pictures
+bindsym $mod+x exec flameshot gui
+bindsym Print exec mkdir -p ~/Pictures && flameshot full -c -p ~/Pictures
 
 # Lock
 bindsym $mod+l exec swaylock -c 000000
