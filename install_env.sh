@@ -519,7 +519,9 @@ installConfigDeploy() {
 # Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
 installSway() {
 	echo "[!] Installing Sway desktop..."
-	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot \
+	# grim: flameshot captures via xdg-desktop-portal-wlr, which shells out to grim.
+	# Do NOT drop it — without grim the portal fails with "unable to capture screen".
+	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot grim \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
