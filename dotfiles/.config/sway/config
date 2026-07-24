@@ -128,10 +128,10 @@ mode $session_control {
 }
 bindsym $mod+Shift+p mode $session_control
 
-# Screenshot — native wlroots stack; saves to ~/Pictures AND clipboard.
+# Screenshot — grim captures, swappy opens an editor to annotate then save/copy.
 # region: $mod+x    fullscreen: Ctrl+Shift+x
-bindsym $mod+x exec mkdir -p ~/Pictures && grim -g "$(slurp)" - | tee ~/Pictures/$(date +%F_%H%M%S).png | wl-copy
-bindsym Ctrl+Shift+x exec mkdir -p ~/Pictures && grim - | tee ~/Pictures/$(date +%F_%H%M%S).png | wl-copy
+bindsym $mod+x exec grim -g "$(slurp)" - | swappy -f -
+bindsym Ctrl+Shift+x exec grim - | swappy -f -
 
 # Lock
 bindsym $mod+l exec swaylock -c 000000
