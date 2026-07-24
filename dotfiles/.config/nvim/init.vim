@@ -55,6 +55,8 @@ Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'
 Plug 'drinkataco/vim-md-toc'
 Plug 'OXY2DEV/markview.nvim'
+Plug 'jakewvincent/mkdnflow.nvim'
+Plug 'iamcco/markdown-preview.nvim', { 'do': 'cd app && npx --yes yarn install' }
 
 " Code Tools
 Plug 'Raimondi/delimitMate'
@@ -128,6 +130,7 @@ source ~/.config/nvim/keybindings.vim
 
 lua require('inactive_regions')
 lua require('markview_config')
+lua require('mkdnflow_config')
 
 " Plugin-specific configurations
 source ~/.config/nvim/plugins.conf/coc.vim

@@ -72,7 +72,7 @@ elif [[ "$1" == "firewall" ]]; then
 	# Apply firewall changes
 	echo "[+] Reloading firewall..."
 	sudo /etc/firewall.sh start 'silent'
-	"$HOME/scripts/tmux_fw_status.sh" 2>/dev/null || true
+	tmux refresh-client -S 2>/dev/null || true
 	echo "[+] Firewall reloaded successfully!"
 	exit 0
 elif [[ "$1" == "config" ]]; then
@@ -121,7 +121,7 @@ elif [[ "$1" == "config" ]]; then
 	# Apply firewall changes
 	echo "[+] Applying firewall configuration..."
 	sudo /etc/firewall.sh start 'silent'
-	"$HOME/scripts/tmux_fw_status.sh" 2>/dev/null || true
+	tmux refresh-client -S 2>/dev/null || true
 	echo "[+] Firewall reloaded with new configuration"
 	echo "[+] All changes applied successfully!"
 	exit 0
@@ -142,4 +142,4 @@ else
 fi
 
 sudo /etc/firewall.sh "${ACTION}" 'silent'
-"$HOME/scripts/tmux_fw_status.sh" 2>/dev/null || true
+tmux refresh-client -S 2>/dev/null || true

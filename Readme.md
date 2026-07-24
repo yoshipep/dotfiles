@@ -118,7 +118,6 @@ Built from source in `/opt/gdb`:
 │       └── alacritty/         # Alacritty (Agave Nerd Font, tmux integration)
 ├── scripts/                    # Utility scripts (copied to ~/scripts/)
 │   ├── net                    # Firewall control wrapper
-│   ├── tmux_fw_status.sh      # Firewall status for tmux status bar
 │   ├── tmux-sessionizer.sh    # Interactive session switcher: tmuxinator projects + dirs (prefix+f)
 │   ├── seek                   # Hex dump at file offset
 │   ├── sz                     # Print file size

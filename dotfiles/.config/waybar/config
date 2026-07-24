@@ -1,0 +1,90 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 30,
+
+    "modules-left": ["sway/workspaces", "custom/todo"],
+    "modules-center": [],
+    "modules-right": ["memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
+
+    "custom/todo": {
+        "exec": "$HOME/.config/waybar/scripts/todo/todo.sh",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 8,
+        "on-click": "$HOME/.config/waybar/scripts/todo/todo.sh mark_done",
+        "on-click-right": "$HOME/.config/waybar/scripts/todo/todo.sh open_tui",
+        "on-click-middle": "$HOME/.config/waybar/scripts/todo/todo.sh middle_click",
+        "tooltip": true
+    },
+
+    "sway/workspaces": {
+        "disable-scroll": false,
+        "all-outputs": false,
+        "format": "{name}"
+    },
+
+    "memory": {
+        "interval": 5,
+        "format": "󰍛 {used:0.1f}G",
+        "tooltip-format": "{used:0.1f}G used / {total:0.1f}G total\n{percentage}%"
+    },
+
+    "battery": {
+        "interval": 30,
+        "format": "{icon} {capacity}%",
+        "format-charging": "󰂄 {capacity}%",
+        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+        "tooltip-format": "{timeTo}",
+        "states": {
+            "warning": 30,
+            "critical": 15
+        }
+    },
+
+    "custom/firewall": {
+        "exec": "$HOME/scripts/waybar_fw_status.sh",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 9,
+        "tooltip": true
+    },
+
+    "custom/docker": {
+        "exec": "$HOME/scripts/waybar_docker_status.sh",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 10,
+        "tooltip": true
+    },
+
+    "pulseaudio": {
+        "format": "{icon}",
+        "format-muted": "󰝟",
+        "format-icons": {
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "tooltip-format": "{volume}%",
+        "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+        "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
+        "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%"
+    },
+
+    "custom/ip": {
+        "exec": "ip -4 addr show scope global | grep -oP '(?<=inet )\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1",
+        "interval": "once",
+        "signal": 1,
+        "format": "{}"
+    },
+
+    "custom/hostname": {
+        "exec": "hostname -s",
+        "interval": "once",
+        "format": " {} "
+    },
+
+    "clock#time": {
+        "format": "{:%d/%m/%Y %H:%M}",
+        "tooltip-format": "<tt>{calendar}</tt>"
+    }
+}

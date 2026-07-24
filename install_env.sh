@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INSTALL="sudo apt install -y"
+INSTALL="sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt install -y"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Detect distro (ubuntu or debian)
@@ -98,14 +98,14 @@ installSyspkgsCore() {
 		sudo add-apt-repository -y ppa:git-core/ppa
 	fi
 	sudo apt update
-	sudo apt upgrade -y
+	sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt upgrade -y
 
 	local PYTHON_VENV="python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
 	local COMMON_PKGS=(
 		build-essential git curl wget
 		python3-pip pipx "$PYTHON_VENV" python3-pynvim
 		htop libclang-dev
-		wl-clipboard xclip flameshot
+		wl-clipboard xclip
 		shellcheck tmux tmuxinator universal-ctags
 		libssl-dev pkg-config
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
@@ -516,6 +516,24 @@ installConfigDeploy() {
 	fi
 }
 
+# Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
+installSway() {
+	echo "[!] Installing Sway desktop..."
+	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot \
+		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
+		pipewire pipewire-pulse wireplumber
+	mkdir -p "$HOME/.config"
+	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
+	# alacritty is cargo-installed (~/.cargo/bin), which a display-manager-launched
+	# Sway session does NOT put on PATH (environment.d isn't honored for the bare
+	# sway.desktop session), so `exec alacritty` in the config can't find it. Symlink
+	# it where the session PATH always looks so the terminal keybind works.
+	[ -x "$HOME/.cargo/bin/alacritty" ] && sudo ln -sf "$HOME/.cargo/bin/alacritty" /usr/local/bin/alacritty
+}
+
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
 installNvimPlugins() {
 	echo "[!] Setting up Neovim plugins (headless)..."
@@ -699,12 +717,13 @@ reg lazydocker   installLazydocker     n "go"                         "lazydocke
 reg docker       installDocker         y ""                           "Docker CE"
 reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
 reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
+reg sway         installSway           y "syspkgs-core config font alacritty plugins" "Sway desktop: WM, waybar, launcher, screenshot, portals"
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
-CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network)
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
 
-PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins network"
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).
