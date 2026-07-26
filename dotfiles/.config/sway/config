@@ -159,3 +159,5 @@ bar {
 }
 
 # Autostart
+exec mako
+exec sh -c 'for p in /usr/libexec/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1; do [ -x "$p" ] && exec "$p"; done'
