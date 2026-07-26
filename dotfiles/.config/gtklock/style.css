@@ -22,11 +22,13 @@ window {
 #input-field {
 	min-height: 44px;
 	min-width: 260px;
-	margin-bottom: 28px;
+	margin-bottom: 10px;
 	border-radius: 14px;
 	border: 2px solid transparent;
 	background-color: rgba(255, 255, 255, 0.15);
 	color: #ffffff;
+	font-size: 14pt;
+	font-weight: bold;
 }
 
 #input-field:focus {
@@ -35,4 +37,6 @@ window {
 
 #unlock-button {
 	border-radius: 14px;
+	padding: 3px 12px;
+	min-height: 0;
 }

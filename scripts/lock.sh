@@ -5,6 +5,7 @@ set -u
 
 CACHE="$HOME/.cache/lock-bg.png"
 CONFIG="$HOME/.config/gtklock/config.ini"
+LAYOUT="$HOME/.config/gtklock/layout.xml"
 
 # Same wallpaper sway picks (see the sway config exec_always).
 WALLPAPER=""
@@ -27,6 +28,7 @@ fi
 
 ARGS=()
 [ -f "$CONFIG" ] && ARGS+=(-c "$CONFIG")
+[ -f "$LAYOUT" ] && ARGS+=(-x "$LAYOUT")
 [ -n "$BG" ] && [ -f "$BG" ] && ARGS+=(-b "$BG")
 
 exec gtklock "${ARGS[@]}"
