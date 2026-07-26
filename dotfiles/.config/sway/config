@@ -27,7 +27,7 @@ input type:keyboard {
 
 # Idle lock
 exec swayidle -w \
-    timeout 300 'swaylock -c 000000' \
+    timeout 300 '~/scripts/lock.sh' \
     timeout 600 'swaymsg "output * power off"' \
     resume 'swaymsg "output * power on"'
 
@@ -124,7 +124,7 @@ set $session_control "[s]hutdown | [r]eboot | [l]ock"
 mode $session_control {
     bindsym s exec systemctl poweroff
     bindsym r exec systemctl reboot
-    bindsym l exec swaymsg mode default && swaylock -c 000000
+    bindsym l exec swaymsg mode default && ~/scripts/lock.sh
 
     bindsym Return mode "default"
     bindsym Escape mode "default"
@@ -137,7 +137,7 @@ bindsym $mod+x exec flameshot gui
 bindsym Print exec mkdir -p ~/Pictures && flameshot full -c -p ~/Pictures
 
 # Lock
-bindsym $mod+l exec swaylock -c 000000
+bindsym $mod+l exec ~/scripts/lock.sh
 
 # Color temperature
 exec gammastep -O 5000

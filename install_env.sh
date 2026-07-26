@@ -519,12 +519,13 @@ installConfigDeploy() {
 # Sway/Wayland desktop: WM + bar + launcher + screenshot + portals + audio. Root, apt.
 installSway() {
 	echo "[!] Installing Sway desktop..."
-	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot \
+	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/gtklock" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
 	# alacritty is cargo-installed (~/.cargo/bin), which a display-manager-launched
@@ -532,6 +533,19 @@ installSway() {
 	# sway.desktop session), so `exec alacritty` in the config can't find it. Symlink
 	# it where the session PATH always looks so the terminal keybind works.
 	[ -x "$HOME/.cargo/bin/alacritty" ] && sudo ln -sf "$HOME/.cargo/bin/alacritty" /usr/local/bin/alacritty
+
+	# scripts/lock.sh styles the lock via gtklock's config.ini + style.css, which
+	# needs gtklock >= 4.0.0. Ubuntu < 25.04 ships 2.1.0; warn (don't fail) so the
+	# desktop still installs and locks, just unstyled, until built from source.
+	local GTKLOCK_MIN="4.0.0" gtklock_ver gtklock_lower
+	gtklock_ver=$(gtklock --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+	if [ -n "$gtklock_ver" ]; then
+		gtklock_lower=$(printf '%s\n%s\n' "$GTKLOCK_MIN" "$gtklock_ver" | sort -V | head -1)
+		if [ "$gtklock_lower" = "$gtklock_ver" ] && [ "$gtklock_ver" != "$GTKLOCK_MIN" ]; then
+			echo "[!] gtklock $gtklock_ver is older than $GTKLOCK_MIN — the styled lock screen needs >= $GTKLOCK_MIN."
+			echo "    Build it from source (https://github.com/jovanlanik/gtklock) for the themed lock."
+		fi
+	fi
 }
 
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
@@ -654,7 +668,7 @@ installNetwork() {
 	echo "[*] NOTE: If dual-booting with Windows, run: sudo timedatectl set-local-rtc 1"
 
 	# Cleanup unwanted packages
-	sudo apt remove -y cups-client cups-common ufw imagemagick 'libreoffice*' gdb gdb-multiarch 2>/dev/null
+	sudo apt remove -y cups-client cups-common ufw 'libreoffice*' gdb gdb-multiarch 2>/dev/null
 	sudo apt autoremove -y
 
 }
