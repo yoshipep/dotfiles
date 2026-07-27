@@ -521,7 +521,7 @@ installConfigDeploy() {
 installSway() {
 	echo "[!] Installing Sway desktop..."
 	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
-		mako-notifier policykit-1-gnome \
+		mako-notifier mate-polkit \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
