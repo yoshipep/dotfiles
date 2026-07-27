@@ -1,0 +1,42 @@
+window {
+	background-size: cover;
+	background-position: center;
+}
+
+#clock-label {
+	font-size: 96pt;
+	font-weight: 200;
+	color: #ffffff;
+}
+
+#date-label {
+	font-size: 18pt;
+	color: #cccccc;
+	margin-top: 6px;
+}
+
+#body-revealer {
+	margin-top: 64px;
+}
+
+#input-field {
+	min-height: 44px;
+	min-width: 260px;
+	margin-bottom: 10px;
+	border-radius: 14px;
+	border: 2px solid transparent;
+	background-color: rgba(255, 255, 255, 0.15);
+	color: #ffffff;
+	font-size: 14pt;
+	font-weight: bold;
+}
+
+#input-field:focus {
+	border-color: #7aa2f7;
+}
+
+#unlock-button {
+	border-radius: 14px;
+	padding: 3px 12px;
+	min-height: 0;
+}

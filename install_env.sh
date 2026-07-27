@@ -3,8 +3,9 @@
 INSTALL="sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt install -y"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Detect distro (ubuntu or debian)
+# Detect distro (ubuntu or debian) and its version
 DISTRO=$(. /etc/os-release && echo "$ID")
+OS_VERSION=$(. /etc/os-release && echo "$VERSION_ID")
 
 removeSnap() {
 	if [[ "$DISTRO" != "ubuntu" ]]; then
@@ -521,12 +522,15 @@ installSway() {
 	echo "[!] Installing Sway desktop..."
 	# grim: flameshot captures via xdg-desktop-portal-wlr, which shells out to grim.
 	# Do NOT drop it — without grim the portal fails with "unable to capture screen".
-	$INSTALL sway swaybg swayidle swaylock fuzzel gammastep flameshot grim \
+	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
+		mako-notifier mate-polkit \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/gtklock" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/mako" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
 	# alacritty is cargo-installed (~/.cargo/bin), which a display-manager-launched
@@ -534,6 +538,19 @@ installSway() {
 	# sway.desktop session), so `exec alacritty` in the config can't find it. Symlink
 	# it where the session PATH always looks so the terminal keybind works.
 	[ -x "$HOME/.cargo/bin/alacritty" ] && sudo ln -sf "$HOME/.cargo/bin/alacritty" /usr/local/bin/alacritty
+
+	# scripts/lock.sh styles the lock via gtklock's config.ini + style.css, which
+	# needs gtklock >= 4.0.0. Ubuntu < 25.04 ships 2.1.0; warn (don't fail) so the
+	# desktop still installs and locks, just unstyled, until built from source.
+	local GTKLOCK_MIN="4.0.0" gtklock_ver gtklock_lower
+	gtklock_ver=$(gtklock --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1)
+	if [ -n "$gtklock_ver" ]; then
+		gtklock_lower=$(printf '%s\n%s\n' "$GTKLOCK_MIN" "$gtklock_ver" | sort -V | head -1)
+		if [ "$gtklock_lower" = "$gtklock_ver" ] && [ "$gtklock_ver" != "$GTKLOCK_MIN" ]; then
+			echo "[!] gtklock $gtklock_ver is older than $GTKLOCK_MIN — the styled lock screen needs >= $GTKLOCK_MIN."
+			echo "    Build it from source (https://github.com/jovanlanik/gtklock) for the themed lock."
+		fi
+	fi
 }
 
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
@@ -656,7 +673,7 @@ installNetwork() {
 	echo "[*] NOTE: If dual-booting with Windows, run: sudo timedatectl set-local-rtc 1"
 
 	# Cleanup unwanted packages
-	sudo apt remove -y cups-client cups-common ufw imagemagick 'libreoffice*' gdb gdb-multiarch 2>/dev/null
+	sudo apt remove -y cups-client cups-common ufw 'libreoffice*' gdb gdb-multiarch 2>/dev/null
 	sudo apt autoremove -y
 
 }
@@ -736,9 +753,35 @@ PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritt
 if [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; then CAN_ROOT=1; else CAN_ROOT=0; fi
 command -v apt-get >/dev/null 2>&1 && HAS_APT=1 || HAS_APT=0
 
+# OS-version guard. Below the per-distro minimum, only the dotfiles + user-space
+# dev-core (PRESET_DEVCORE) are offered; the GUI desktop and full-system pieces
+# need a recent OS, while the toolchain and dotfiles work fine on old releases.
+# Override with ALLOW_OLD_OS=1. Distros without a known minimum (or no VERSION_ID,
+# e.g. Debian testing) are not gated — fail open.
+declare -A OS_MIN=([ubuntu]=24.04 [debian]=13)
+OLD_OS=0
+OS_MIN_REQ="${OS_MIN[$DISTRO]:-}"
+if [ "${ALLOW_OLD_OS:-0}" != "1" ] && [ -n "$OS_MIN_REQ" ] && [ -n "$OS_VERSION" ]; then
+	if [ "$(printf '%s\n%s\n' "$OS_MIN_REQ" "$OS_VERSION" | sort -V | head -1)" = "$OS_VERSION" ] &&
+		[ "$OS_VERSION" != "$OS_MIN_REQ" ]; then
+		OLD_OS=1
+	fi
+fi
+# Set once resolve_deps exists (needs the transitive dev-core closure, e.g.
+# treesitter-cli is a dep of nvim-plugins but not named in the preset).
+OLD_OS_ALLOW=""
+
+# True when a component is withheld solely because the OS is below the minimum.
+os_gated() {
+	[ "$OLD_OS" -eq 1 ] || return 1
+	case " $OLD_OS_ALLOW " in *" $1 "*) return 1 ;; esac
+	return 0
+}
+
 # A component is runnable here if we have the privilege/tooling it needs.
 comp_available() {
 	local c="$1"
+	os_gated "$c" && return 1
 	[ "${COMP_ROOT[$c]}" = "y" ] && [ "$CAN_ROOT" -eq 0 ] && return 1
 	case "$c" in
 		syspkgs-core|syspkgs-full|docker|virtualbox|network|removesnap)
@@ -765,6 +808,10 @@ resolve_deps() {
 	done
 	echo "${out[*]}"
 }
+
+# Below-threshold allowlist = dotfiles + the full user-space dev-core closure
+# (resolve_deps pulls transitive deps the preset doesn't name, e.g. treesitter-cli).
+OLD_OS_ALLOW="$(resolve_deps "$PRESET_DEVCORE")"
 
 run_selection() {
 	local resolved; resolved="$(resolve_deps "$1")"
@@ -805,7 +852,11 @@ run_selection() {
 			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
 		else
 			skipped+=("$c")
-			printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+			if os_gated "$c"; then
+				printf "    - %-13s %s  [SKIP: needs %s >= %s]\n" "$c" "${COMP_DESC[$c]}" "$DISTRO" "$OS_MIN_REQ"
+			else
+				printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+			fi
 		fi
 	done
 	[ ${#skipped[@]} -gt 0 ] && echo "" && \
@@ -851,6 +902,7 @@ echo "[!] Installation script by Josep Comes (Debian/Ubuntu, apt-based)."
 echo ""
 [ "$CAN_ROOT" -eq 1 ] && echo "[*] root: available" || echo "[*] root: NONE — apt/system components will be skipped"
 [ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/vbox/network unavailable on this box"
+[ "$OLD_OS" -eq 1 ] && echo "[*] OS: $DISTRO $OS_VERSION is below the $OS_MIN_REQ minimum — GUI/full components gated to config + dev-core (override: ALLOW_OLD_OS=1)"
 echo ""
 echo "[?] Choose what to install:"
 echo "    1) personal  - full personal environment (everything)"
@@ -870,7 +922,9 @@ case "$menu_choice" in
 		i=1
 		for c in "${CANON_ORDER[@]}"; do
 			MENU_IDX[$i]="$c"
-			avail=""; comp_available "$c" || avail="   [unavailable here]"
+			avail=""
+			if os_gated "$c"; then avail="   [needs $DISTRO >= $OS_MIN_REQ]"
+			elif ! comp_available "$c"; then avail="   [unavailable here]"; fi
 			printf "   %2d) %-13s %s%s\n" "$i" "$c" "${COMP_DESC[$c]}" "$avail"
 			i=$((i + 1))
 		done

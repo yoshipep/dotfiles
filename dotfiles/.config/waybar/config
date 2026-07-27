@@ -4,8 +4,12 @@
     "height": 30,
 
     "modules-left": ["sway/workspaces", "custom/todo"],
-    "modules-center": [],
+    "modules-center": ["sway/mode"],
     "modules-right": ["memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
+
+    "sway/mode": {
+        "format": " {} "
+    },
 
     "custom/todo": {
         "exec": "$HOME/.config/waybar/scripts/todo/todo.sh",
@@ -35,7 +39,7 @@
         "format": "{icon} {capacity}%",
         "format-charging": "󰂄 {capacity}%",
         "format-icons": ["󰂎", "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
-        "tooltip-format": "{timeTo}",
+        "tooltip-format": "{time}",
         "states": {
             "warning": 30,
             "critical": 15
@@ -71,14 +75,16 @@
     },
 
     "custom/ip": {
-        "exec": "ip -4 addr show scope global | grep -oP '(?<=inet )\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1",
+        "exec": "ip=$(ip -4 addr show scope global | grep -oP '(?<=inet )\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1); printf '{\"text\":\"%s\",\"tooltip\":\"IP address\"}' \"$ip\"",
+        "return-type": "json",
         "interval": "once",
         "signal": 1,
         "format": "{}"
     },
 
     "custom/hostname": {
-        "exec": "hostname -s",
+        "exec": "h=$(hostname -s); printf '{\"text\":\"%s\",\"tooltip\":\"Hostname\"}' \"$h\"",
+        "return-type": "json",
         "interval": "once",
         "format": " {} "
     },
