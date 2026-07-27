@@ -26,10 +26,7 @@ input type:keyboard {
 }
 
 # Idle lock
-exec swayidle -w \
-    timeout 300 '~/scripts/lock.sh' \
-    timeout 600 'swaymsg "output * power off"' \
-    resume 'swaymsg "output * power on"'
+exec_always ~/scripts/idle.sh
 
 # Use Mouse+$mod to drag floating windows
 floating_modifier $mod normal
