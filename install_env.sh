@@ -3,8 +3,9 @@
 INSTALL="sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt install -y"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Detect distro (ubuntu or debian)
+# Detect distro (ubuntu or debian) and its version
 DISTRO=$(. /etc/os-release && echo "$ID")
+OS_VERSION=$(. /etc/os-release && echo "$VERSION_ID")
 
 removeSnap() {
 	if [[ "$DISTRO" != "ubuntu" ]]; then
@@ -750,9 +751,35 @@ PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritt
 if [ "$(id -u)" -eq 0 ] || command -v sudo >/dev/null 2>&1; then CAN_ROOT=1; else CAN_ROOT=0; fi
 command -v apt-get >/dev/null 2>&1 && HAS_APT=1 || HAS_APT=0
 
+# OS-version guard. Below the per-distro minimum, only the dotfiles + user-space
+# dev-core (PRESET_DEVCORE) are offered; the GUI desktop and full-system pieces
+# need a recent OS, while the toolchain and dotfiles work fine on old releases.
+# Override with ALLOW_OLD_OS=1. Distros without a known minimum (or no VERSION_ID,
+# e.g. Debian testing) are not gated — fail open.
+declare -A OS_MIN=([ubuntu]=24.04 [debian]=13)
+OLD_OS=0
+OS_MIN_REQ="${OS_MIN[$DISTRO]:-}"
+if [ "${ALLOW_OLD_OS:-0}" != "1" ] && [ -n "$OS_MIN_REQ" ] && [ -n "$OS_VERSION" ]; then
+	if [ "$(printf '%s\n%s\n' "$OS_MIN_REQ" "$OS_VERSION" | sort -V | head -1)" = "$OS_VERSION" ] &&
+		[ "$OS_VERSION" != "$OS_MIN_REQ" ]; then
+		OLD_OS=1
+	fi
+fi
+# Set once resolve_deps exists (needs the transitive dev-core closure, e.g.
+# treesitter-cli is a dep of nvim-plugins but not named in the preset).
+OLD_OS_ALLOW=""
+
+# True when a component is withheld solely because the OS is below the minimum.
+os_gated() {
+	[ "$OLD_OS" -eq 1 ] || return 1
+	case " $OLD_OS_ALLOW " in *" $1 "*) return 1 ;; esac
+	return 0
+}
+
 # A component is runnable here if we have the privilege/tooling it needs.
 comp_available() {
 	local c="$1"
+	os_gated "$c" && return 1
 	[ "${COMP_ROOT[$c]}" = "y" ] && [ "$CAN_ROOT" -eq 0 ] && return 1
 	case "$c" in
 		syspkgs-core|syspkgs-full|docker|virtualbox|network|removesnap)
@@ -779,6 +806,10 @@ resolve_deps() {
 	done
 	echo "${out[*]}"
 }
+
+# Below-threshold allowlist = dotfiles + the full user-space dev-core closure
+# (resolve_deps pulls transitive deps the preset doesn't name, e.g. treesitter-cli).
+OLD_OS_ALLOW="$(resolve_deps "$PRESET_DEVCORE")"
 
 run_selection() {
 	local resolved; resolved="$(resolve_deps "$1")"
@@ -819,7 +850,11 @@ run_selection() {
 			printf "    - %-13s %s\n" "$c" "${COMP_DESC[$c]}"
 		else
 			skipped+=("$c")
-			printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+			if os_gated "$c"; then
+				printf "    - %-13s %s  [SKIP: needs %s >= %s]\n" "$c" "${COMP_DESC[$c]}" "$DISTRO" "$OS_MIN_REQ"
+			else
+				printf "    - %-13s %s  [SKIP: missing capability]\n" "$c" "${COMP_DESC[$c]}"
+			fi
 		fi
 	done
 	[ ${#skipped[@]} -gt 0 ] && echo "" && \
@@ -865,6 +900,7 @@ echo "[!] Installation script by Josep Comes (Debian/Ubuntu, apt-based)."
 echo ""
 [ "$CAN_ROOT" -eq 1 ] && echo "[*] root: available" || echo "[*] root: NONE — apt/system components will be skipped"
 [ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/vbox/network unavailable on this box"
+[ "$OLD_OS" -eq 1 ] && echo "[*] OS: $DISTRO $OS_VERSION is below the $OS_MIN_REQ minimum — GUI/full components gated to config + dev-core (override: ALLOW_OLD_OS=1)"
 echo ""
 echo "[?] Choose what to install:"
 echo "    1) personal  - full personal environment (everything)"
@@ -884,7 +920,9 @@ case "$menu_choice" in
 		i=1
 		for c in "${CANON_ORDER[@]}"; do
 			MENU_IDX[$i]="$c"
-			avail=""; comp_available "$c" || avail="   [unavailable here]"
+			avail=""
+			if os_gated "$c"; then avail="   [needs $DISTRO >= $OS_MIN_REQ]"
+			elif ! comp_available "$c"; then avail="   [unavailable here]"; fi
 			printf "   %2d) %-13s %s%s\n" "$i" "$c" "${COMP_DESC[$c]}" "$avail"
 			i=$((i + 1))
 		done
