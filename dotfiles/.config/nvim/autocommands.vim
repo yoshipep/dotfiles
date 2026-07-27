@@ -30,8 +30,6 @@ autocmd FileType tex set fo-=t
 function! s:MarkdownSetup() abort
     if get(b:, 'markdown_setup_done', 0) | return | endif
     setlocal spell
-    nnoremap <buffer> <silent> <leader>v :lua require('markview_config').vsplit()<CR>
-    nnoremap <buffer> <silent> <leader>h :lua require('markview_config').hsplit()<CR>
     let b:markdown_setup_done = 1
 endfunction
 augroup MarkdownSetup
