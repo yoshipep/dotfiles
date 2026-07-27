@@ -75,7 +75,7 @@
     },
 
     "custom/ip": {
-        "exec": "ip=$(ip -4 addr show scope global | grep -oP '(?<=inet )\\d+\\.\\d+\\.\\d+\\.\\d+' | head -1); printf '{\"text\":\"%s\",\"tooltip\":\"IP address\"}' \"$ip\"",
+        "exec": "$HOME/scripts/waybar_ip.sh",
         "return-type": "json",
         "interval": "once",
         "signal": 1,
