@@ -1,0 +1,24 @@
+font=0xProto Nerd Font 11
+background-color=#282828
+text-color=#ebdbb2
+border-color=#d79921
+border-size=2
+border-radius=8
+progress-color=over #504945
+padding=12
+margin=10
+width=340
+height=120
+default-timeout=5000
+ignore-timeout=1
+anchor=top-right
+max-visible=5
+format=<b>%s</b>\n%b
+
+[urgency=low]
+background-color=#282828CC
+border-color=#83a598
+
+[urgency=critical]
+border-color=#fb4934
+default-timeout=0

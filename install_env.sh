@@ -527,6 +527,7 @@ installSway() {
 	cp -r "$REPO_DIR/dotfiles/.config/sway" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/waybar" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/gtklock" "$HOME/.config/"
+	cp -r "$REPO_DIR/dotfiles/.config/mako" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/xdg-desktop-portal" "$HOME/.config/"
 	cp -r "$REPO_DIR/dotfiles/.config/environment.d" "$HOME/.config/"
 	# alacritty is cargo-installed (~/.cargo/bin), which a display-manager-launched
