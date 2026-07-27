@@ -5,10 +5,22 @@
 
     "modules-left": ["sway/workspaces", "custom/todo"],
     "modules-center": ["sway/mode"],
-    "modules-right": ["memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
+    "modules-right": ["network", "memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
 
     "sway/mode": {
         "format": " {} "
+    },
+
+    "network": {
+        "interval": 5,
+        "format-wifi": "{icon}",
+        "format-ethernet": "󰈀",
+        "format-disconnected": "󰤮",
+        "format-icons": ["󰤟", "󰤢", "󰤥", "󰤨"],
+        "on-click": "$HOME/scripts/wifi-menu.sh",
+        "tooltip-format-wifi": "{essid}",
+        "tooltip-format-ethernet": "{ifname}",
+        "tooltip-format-disconnected": "Disconnected"
     },
 
     "custom/todo": {
