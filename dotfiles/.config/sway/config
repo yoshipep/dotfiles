@@ -15,9 +15,9 @@ focus_follows_mouse no
 
 font pango:0xProto Nerd Font 10
 
-# Wallpaper — fallback color; overridden if ~/wallpaper.{jpg,jpeg,png} exists
-output * bg #282828 solid_color
-exec_always sh -c 'for f in ~/wallpaper.jpg ~/wallpaper.jpeg ~/wallpaper.png; do [ -f "$f" ] && swaymsg "output * bg $f fill" && break; done'
+# Wallpaper — swaybg paints on the first frame (no gray flash); loop keeps
+# multi-format support and falls back to a solid color if no wallpaper exists.
+exec_always sh -c 'pkill -x swaybg; for f in ~/wallpaper.jpg ~/wallpaper.jpeg ~/wallpaper.png; do [ -f "$f" ] && exec swaybg -o "*" -i "$f" -m fill; done; exec swaybg -o "*" -c "#282828"'
 
 # Input
 input type:keyboard {
