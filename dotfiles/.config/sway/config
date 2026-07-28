@@ -136,8 +136,8 @@ bindsym Print exec mkdir -p ~/Pictures && flameshot full -c -p ~/Pictures
 # Lock
 bindsym $mod+l exec ~/scripts/lock.sh
 
-# Color temperature
-exec gammastep -O 5000
+# Color temperature — scheduled night light (see ~/.config/gammastep/config.ini)
+exec gammastep
 
 # No title bars
 default_border none
