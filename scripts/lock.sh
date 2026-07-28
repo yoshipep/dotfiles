@@ -3,6 +3,10 @@
 # No `set -e`: a failed blur must never stop the screen from actually locking.
 set -u
 
+# Already locked? Don't stack a second gtklock — swayidle may re-fire this after
+# the DPMS debounce resets its idle timer.
+pgrep -x gtklock >/dev/null && exit 0
+
 CACHE="$HOME/.cache/lock-bg.png"
 CONFIG="$HOME/.config/gtklock/config.ini"
 LAYOUT="$HOME/.config/gtklock/layout.xml"
