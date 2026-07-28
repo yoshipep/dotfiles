@@ -103,6 +103,12 @@
 
     "clock#time": {
         "format": "{:%d/%m/%Y %H:%M}",
-        "tooltip-format": "<tt>{calendar}</tt>"
+        "tooltip-format": "<tt>{calendar}</tt>",
+        "calendar": {
+            "mode": "month",
+            "format": {
+                "today": "<span color='#fabd2f'><b>{}</b></span>"
+            }
+        }
     }
 }
