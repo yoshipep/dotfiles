@@ -32,7 +32,10 @@ let g:doge_doc_standard_cpp = 'doxygen_javadoc'
 let g:doge_doc_standard_sh = 'google'
 
 " --- Python & Isort ---
-let g:python3_host_prog = '/usr/bin/python3'
+" Neovim's Python host lives in a WORKON_HOME venv (`workon neovim`) so pynvim + the
+" isort library stay current regardless of distro; apt's python3-pynvim lags a
+" source-built nvim. The installer creates it.
+let g:python3_host_prog = expand('~/.virtualenvs/neovim/bin/python3')
 let g:isort_command = 'isort'
 
 " --- Vimtex ---

@@ -104,7 +104,7 @@ installSyspkgsCore() {
 	local PYTHON_VENV="python$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')-venv"
 	local COMMON_PKGS=(
 		build-essential git curl wget
-		python3-pip pipx "$PYTHON_VENV" python3-pynvim
+		python3-pip pipx "$PYTHON_VENV"
 		htop libclang-dev
 		wl-clipboard xclip
 		shellcheck tmux tmuxinator universal-ctags
@@ -557,11 +557,20 @@ installSway() {
 # Neovim plugin setup (headless). Depends: neovim, node, plugins, config-deploy.
 installNvimPlugins() {
 	echo "[!] Setting up Neovim plugins (headless)..."
+	# Neovim's Python host: a WORKON_HOME venv (workon neovim) with a current pynvim +
+	# the isort library that stsewd/isort.nvim imports. Keeps them ahead of apt's
+	# python3-pynvim (which lags a source-built nvim) without fighting PEP 668. Must
+	# exist before nvim runs so isort.nvim's rplugin registers via UpdateRemotePlugins.
+	local NVIM_VENV="${WORKON_HOME:-$HOME/.virtualenvs}/neovim"
+	mkdir -p "$(dirname "$NVIM_VENV")"
+	python3 -m venv "$NVIM_VENV"
+	"$NVIM_VENV/bin/pip" install --quiet --upgrade pip pynvim isort
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
 	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	/opt/neovim/bin/nvim --headless +"UpdateRemotePlugins" +qa
 	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
 	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
 }
