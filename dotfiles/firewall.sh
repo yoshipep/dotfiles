@@ -159,6 +159,14 @@ do_start() {
     ${IPTABLES} -P OUTPUT DROP
     ${IPTABLES} -P FORWARD DROP
 
+    # Log-and-drop chain: NFLOG the packet then DROP, so explicitly dropped traffic
+    # (isolation crossings, port scans, invalid/SYN) is auditable in firewall.log
+    # rather than only default-policy fall-through. Recreated fresh on every reload.
+    ${IPTABLES} -N LOGDROP 2>/dev/null
+    ${IPTABLES} -F LOGDROP
+    ${IPTABLES} -A LOGDROP -j NFLOG --nflog-group 1 --nflog-prefix "DROP: "
+    ${IPTABLES} -A LOGDROP -j DROP
+
     # Allow all loopback traffic (required for local processes)
     append_rule "INPUT -i lo -j ACCEPT"
     append_rule "OUTPUT -o lo -j ACCEPT"
@@ -178,16 +186,16 @@ do_start() {
     append_rule "OUTPUT -o vm+ -p tcp --dport ${SSH_PORT} -j ACCEPT"
 
     # Drop invalid packets before processing
-    append_rule "INPUT -m conntrack --ctstate INVALID -j DROP"
-    append_rule "OUTPUT -m conntrack --ctstate INVALID -j DROP"
-    append_rule "FORWARD -m conntrack --ctstate INVALID -j DROP"
+    append_rule "INPUT -m conntrack --ctstate INVALID -j LOGDROP"
+    append_rule "OUTPUT -m conntrack --ctstate INVALID -j LOGDROP"
+    append_rule "FORWARD -m conntrack --ctstate INVALID -j LOGDROP"
 
     # Allow ESTABLISHED and RELATED connections (return traffic for existing connections)
     append_rule "INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Drop all incoming connection attempts (this is a client-only host)
-    append_rule "INPUT -p tcp --syn -j DROP"
+    append_rule "INPUT -p tcp --syn -j LOGDROP"
 
     # -- DOCKER BLOCKING (default: no internet for Docker) --
     # Block Docker containers from accessing the internet by default
@@ -199,12 +207,12 @@ do_start() {
     # VMs on different virtual networks are not allowed to communicate with each other.
     # Cross-network forwarding is explicitly blocked here rather than relying solely on
     # the default DROP policy, so isolation holds regardless of policy changes.
-    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WEB_IFACE} -j DROP"
-    append_rule "FORWARD -i ${MAIL_IFACE} -o ${DEVELOP_IFACE} -j DROP"
-    append_rule "FORWARD -i ${WEB_IFACE} -o ${MAIL_IFACE} -j DROP"
-    append_rule "FORWARD -i ${WEB_IFACE} -o ${DEVELOP_IFACE} -j DROP"
-    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${MAIL_IFACE} -j DROP"
-    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WEB_IFACE} -j DROP"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WEB_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${DEVELOP_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${MAIL_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${DEVELOP_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${MAIL_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WEB_IFACE} -j LOGDROP"
 
     # -- VM FORWARDING RULES (per-network egress on role ports) --
     # Mail net: IMAP/SMTP/submission + HTTPS
@@ -255,10 +263,10 @@ do_start() {
 
     # -- PORT SCAN DETECTION --
     # Drop suspicious TCP flag combinations used in port scanning
-    append_rule "INPUT -p tcp --tcp-flags ALL NONE -j DROP"  # NULL scan
-    append_rule "INPUT -p tcp --tcp-flags ALL ALL -j DROP"   # XMAS scan
-    append_rule "INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP"
-    append_rule "INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j DROP"
+    append_rule "INPUT -p tcp --tcp-flags ALL NONE -j LOGDROP"  # NULL scan
+    append_rule "INPUT -p tcp --tcp-flags ALL ALL -j LOGDROP"   # XMAS scan
+    append_rule "INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j LOGDROP"
+    append_rule "INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j LOGDROP"
 
     # -- FALLBACK RULES (catch-all for unmatched traffic) --
     # Log dropped packets to dedicated file via ulogd2 (see /var/log/ulog/firewall.log)
