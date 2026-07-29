@@ -89,7 +89,7 @@
     "custom/ip": {
         "exec": "$HOME/scripts/waybar_ip.sh",
         "return-type": "json",
-        "interval": "once",
+        "interval": 10,
         "signal": 1,
         "format": "{}"
     },
