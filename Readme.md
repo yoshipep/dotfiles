@@ -40,7 +40,7 @@ The installer is a component registry — each component declares whether it nee
 - **Shell**: `shell` (zsh, oh-my-zsh, fzf), `plugins` (powerlevel10k, zsh-autosuggestions)
 - **Editor**: `neovim`, `nvim-plugins` (headless PlugInstall/CoC/treesitter + a pynvim venv for the isort rplugin), `theme`, `treesitter-cli`, `cargo-tools` (eza, bat, ripgrep, git-delta, asm-lsp), `pipx-tools` (clangd, clang-format)
 - **Terminal / Desktop**: `alacritty`, `font` (0xProto Nerd Font), `sway` (Wayland desktop: WM, waybar, gtklock, mako, fuzzel + wifi picker, mate-polkit, screenshots)
-- **Dev tools**: `docker`, `virtualbox`, `gdb` (+ `gef-gep`), `ghidra`, `lazydocker`
+- **Dev tools**: `docker`, `libvirt` (QEMU/KVM + virt-manager), `gdb` (+ `gef-gep`), `ghidra`, `lazydocker`
 - **Network**: `network` (firewall + static IP + systemd services)
 
 On non-apt or no-sudo boxes, `syspkgs-*` are skipped; user-space components still run and assume their system deps are present (failing loudly if not).
@@ -91,9 +91,9 @@ net flush         # Flush all iptables rules (emergency reset)
 ### Firewall Architecture
 
 - Default DROP on INPUT, OUTPUT, FORWARD chains
-- VM isolation: three virtual networks (vboxnet0: mail, vboxnet1: web, vboxnet2: dev)
+- VM isolation: three isolated libvirt bridges (`vmmail`, `vmweb`, `vmdev`) with per-network egress on role ports; cross-network traffic is dropped
 - Port scan detection (NULL, XMAS, malformed flags)
-- Firewall logs via NFLOG to `/var/log/ulog/firewall.log`
+- Firewall logs via NFLOG to `/var/log/ulog/firewall.log` (explicit drops routed through a log-and-drop chain, so isolation crossings are auditable)
 
 ### Docker Networking
 
@@ -138,6 +138,7 @@ Built from source in `/opt/gdb`:
 │   ├── firewall.service         # Systemd service for firewall
 │   ├── network-static.service   # Systemd service for static IP
 │   ├── ulogd.conf               # Firewall logging config
+│   ├── libvirt/                 # VM network definitions (vmmail/vmweb/vmdev, open bridges)
 │   └── .config/
 │       ├── nvim/                # Neovim (LSP, CoC, treesitter, markview, markdown-preview, mkdnflow)
 │       ├── alacritty/           # Alacritty (0xProto Nerd Font, tmux integration)
