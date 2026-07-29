@@ -619,7 +619,7 @@ installNetwork() {
 	fi
 
 	if [ -z "$WAN_IFACE" ]; then
-		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vbox|docker|br-)/ {print $2; exit}')
+		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vm|virbr|docker|br-)/ {print $2; exit}')
 		if [ -z "$WAN_IFACE" ]; then
 			echo "[!] ERROR: Could not auto-detect network interface. Please specify WAN_IFACE in network.conf"
 			exit 1
