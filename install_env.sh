@@ -625,6 +625,10 @@ installNetwork() {
 			exit 1
 		fi
 		echo "[+] Auto-detected network interface: $WAN_IFACE"
+		# Persist it: the template ships WAN_IFACE empty and neither firewall.sh nor
+		# network-static.sh has a runtime fallback, so the copy landing in
+		# /etc/network.conf must carry a concrete interface name.
+		sed -i "s|^WAN_IFACE=.*|WAN_IFACE=${WAN_IFACE}|" "$REPO_DIR/network.conf"
 	fi
 
 	NETMASK="${NETMASK:-24}"
