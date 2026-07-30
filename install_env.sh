@@ -238,7 +238,7 @@ installNode() {
 installLibvirt() {
 	echo "[!] Installing QEMU/KVM + libvirt + virt-manager..."
 	$INSTALL qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients \
-		virt-manager virt-viewer ovmf
+		virt-manager virt-viewer ovmf virtiofsd
 
 	# Manage VMs and networks without root.
 	sudo usermod -a -G libvirt,kvm "$USER"
