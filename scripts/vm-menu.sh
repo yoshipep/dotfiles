@@ -10,4 +10,5 @@ vm=$(virsh -c "$URI" list --all --name | sed '/^$/d' |
 virsh -c "$URI" domstate "$vm" 2>/dev/null | grep -q running ||
 	virsh -c "$URI" start "$vm"
 
-exec virt-viewer -c "$URI" --full-screen "$vm"
+exec virt-viewer -c "$URI" --full-screen \
+	--hotkeys=release-cursor=ctrl+alt,toggle-fullscreen=shift+f11 "$vm"
