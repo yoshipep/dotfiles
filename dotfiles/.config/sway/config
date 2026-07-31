@@ -163,4 +163,7 @@ bar {
 
 # Autostart
 exec mako
+# Automount removable media (udisks2 via udiskie). --no-tray: waybar has no tray module.
+# Mounts land in /run/media/$USER/<label>; unmount with `udiskie-umount -a`.
+exec udiskie --automount --notify --no-tray
 exec sh -c 'for p in /usr/libexec/polkit-mate-authentication-agent-1 /usr/lib/mate-polkit/polkit-mate-authentication-agent-1; do [ -x "$p" ] && exec "$p"; done'

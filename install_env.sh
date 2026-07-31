@@ -524,6 +524,7 @@ installSway() {
 	# Do NOT drop it — without grim the portal fails with "unable to capture screen".
 	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
 		mako-notifier mate-polkit \
+		udiskie ntfs-3g exfatprogs \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
 	mkdir -p "$HOME/.config"
