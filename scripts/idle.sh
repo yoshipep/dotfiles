@@ -7,4 +7,5 @@ pkill -x swayidle
 exec swayidle -w \
 	timeout 300 "$HOME/scripts/lock.sh" \
 	timeout 420 'swaymsg "output * power off"' \
-	resume 'swaymsg "output * power on"'
+	resume 'swaymsg "output * power on"' \
+	before-sleep "$HOME/scripts/lock.sh -d"

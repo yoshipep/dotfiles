@@ -30,7 +30,11 @@ if [ -n "$WALLPAPER" ]; then
 	fi
 fi
 
-ARGS=()
+# Anything passed through goes straight to gtklock. idle.sh's before-sleep hook
+# uses -d so gtklock detaches once the lock is up: swayidle -w otherwise waits
+# for it to *exit*, holding logind's sleep inhibitor until the screen is
+# unlocked, and every lid close would stall until that inhibitor timed out.
+ARGS=("$@")
 [ -f "$CONFIG" ] && ARGS+=(-c "$CONFIG")
 [ -f "$LAYOUT" ] && ARGS+=(-x "$LAYOUT")
 [ -n "$BG" ] && [ -f "$BG" ] && ARGS+=(-b "$BG")
