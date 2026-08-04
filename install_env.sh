@@ -673,6 +673,19 @@ installNetwork() {
 	sudo chown root:root /etc/ulogd.conf
 	sudo chmod 644 /etc/ulogd.conf
 
+	# Keep USB input devices from waking the machine while it is suspended. Only
+	# on machines with a lid: a desktop has no other way back up, so muting the
+	# keyboard and mouse there would leave the power button as the only wake.
+	if grep -q 'Lid Switch' /proc/bus/input/devices 2>/dev/null; then
+		sudo cp "$REPO_DIR/dotfiles/usb-wakeup.rules" /etc/udev/rules.d/90-usb-wakeup.rules
+		sudo chown root:root /etc/udev/rules.d/90-usb-wakeup.rules
+		sudo chmod 644 /etc/udev/rules.d/90-usb-wakeup.rules
+		sudo udevadm control --reload
+		sudo udevadm trigger --subsystem-match=usb --action=add
+	else
+		echo "[*] No lid switch found — skipping USB wakeup rule (desktop)"
+	fi
+
 	# Enable services (network-static must start before firewall)
 	sudo systemctl daemon-reload
 	sudo systemctl enable network-static.service

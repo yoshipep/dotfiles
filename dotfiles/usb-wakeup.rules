@@ -1,0 +1,5 @@
+# Stop USB input waking the laptop out of s2idle: a nudge under a wireless mouse
+# pulls it straight back out, logind re-suspends 30s later, and it cycles inside a
+# closed lid. Matched by HID interface class (03) so it holds for any brand; the
+# internal keyboard (i8042) and touchpad (I2C) are not USB and stay untouched.
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{ID_USB_INTERFACES}=="*:03*:*", ATTR{power/wakeup}="disabled"
