@@ -142,6 +142,11 @@ bindsym --locked XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@
 bindsym --locked XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 bindsym --locked XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
 
+# Backlight — brightnessctl. -n floors the level at 1: plain `5%-` reaches 0 and
+# blanks the panel, leaving no visible way back up.
+bindsym --locked XF86MonBrightnessUp exec brightnessctl set +5%
+bindsym --locked XF86MonBrightnessDown exec brightnessctl -n set 5%-
+
 # Color temperature — scheduled night light (see ~/.config/gammastep/config.ini)
 exec gammastep
 

@@ -522,8 +522,9 @@ installSway() {
 	echo "[!] Installing Sway desktop..."
 	# grim: flameshot captures via xdg-desktop-portal-wlr, which shells out to grim.
 	# Do NOT drop it — without grim the portal fails with "unable to capture screen".
+	# brightnessctl: drives the backlight keys; dotfiles/backlight.rules grants it write access.
 	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
-		mako-notifier mate-polkit \
+		mako-notifier mate-polkit brightnessctl \
 		udiskie ntfs-3g exfatprogs \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
@@ -684,6 +685,23 @@ installNetwork() {
 		sudo udevadm trigger --subsystem-match=usb --action=add
 	else
 		echo "[*] No lid switch found — skipping USB wakeup rule (desktop)"
+	fi
+
+	# Let the desktop user drive the panel backlight. Two halves, both required: the rule
+	# makes the brightness file group-writable, and the user has to be in video to use
+	# that. Skipped where there is no backlight — a desktop monitor is not one.
+	if [ -n "$(ls -A /sys/class/backlight 2>/dev/null)" ]; then
+		sudo cp "$REPO_DIR/dotfiles/backlight.rules" /etc/udev/rules.d/90-backlight.rules
+		sudo chown root:root /etc/udev/rules.d/90-backlight.rules
+		sudo chmod 644 /etc/udev/rules.d/90-backlight.rules
+		sudo udevadm control --reload
+		# The rule fires on add, which already happened at boot. Replay it so the
+		# backlight that is present right now picks up the new permissions.
+		sudo udevadm trigger --subsystem-match=backlight --action=add
+		sudo usermod -aG video "$USER"
+		echo "[*] Added $USER to the video group — log out and back in for it to apply"
+	else
+		echo "[*] No backlight device found — skipping backlight rule (desktop)"
 	fi
 
 	# Enable services (network-static must start before firewall)

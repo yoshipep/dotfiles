@@ -1,0 +1,6 @@
+# Give the video group write access to the panel brightness so the sway backlight
+# keys work without root. Matched on subsystem, not device name: the controller
+# depends on the graphics stack (intel_backlight, amdgpu_bl0, acpi_video0). The
+# user also has to be in video — install_env.sh does that half.
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chmod g+w /sys/class/backlight/%k/brightness"
