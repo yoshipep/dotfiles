@@ -111,7 +111,7 @@ bindsym $alt+Shift+9 move container to workspace number $ws9
 bindsym $alt+Shift+0 move container to workspace number $ws10
 
 # Reload config
-bindsym $alt+Shift+c reload
+bindsym $alt+Shift+r reload
 
 # Exit sway
 bindsym $mod+Shift+e exec swaynag -t warning -m 'Exit sway?' -B 'Yes' 'swaymsg exit'
