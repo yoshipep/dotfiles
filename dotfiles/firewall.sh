@@ -29,27 +29,28 @@ DNS_PORT='53'
 HTTP_PORT='80'
 HTTPS_PORT='443'
 
-# -- MAIL VMs --
-MAIL_IFACE='vboxnet0'
-MAIL_ROUTER='192.168.3.193'
-IONOS_VM='192.168.3.194'
-GMAIL_VM='192.168.3.195'
-IONOS_PORTS='993,587'
-GMAIL_PORTS='993,465,443'
+# VM egress policy is per-network, not per-host: any VM attached to a bridge
+# inherits its network's role (allowed ports). Add a client by booting it on the
+# right bridge -- no firewall change. Cross-network isolation and inbound deny are
+# enforced below regardless.
 
-# -- WEB NAVIGATION VMs --
-WEB_IFACE='vboxnet1'
-WEB_ROUTER='192.168.4.193'
-WEB_VM='192.168.4.194'
-CLAUDE_VM='192.168.4.195'
+# -- MAIL NET (graphical mail clients) --
+MAIL_IFACE='vmmail'
+MAIL_NET='10.0.1.0/24'
+MAIL_ROUTER='10.0.1.1'
+MAIL_PORTS='993,587,465,443'
+
+# -- WEB NET (graphical web browsing) --
+WEB_IFACE='vmweb'
+WEB_NET='10.0.2.0/24'
+WEB_ROUTER='10.0.2.1'
 WEB_PORTS="${HTTP_PORT},${HTTPS_PORT}"
-CLAUDE_PORTS="${SSH_PORT},${WEB_PORTS}"
 
-# -- DEVELOP VMs --
-DEVELOP_IFACE='vboxnet2'
-DEVELOP_ROUTER='192.168.5.1'
-OSDEV_VM='192.168.5.2'
-OSDEV_PORTS="${WEB_PORTS}"
+# -- DEVELOP NET (SSH-driven code VMs) --
+DEVELOP_IFACE='vmdev'
+DEVELOP_NET='10.0.3.0/24'
+DEVELOP_ROUTER='10.0.3.1'
+DEVELOP_PORTS="${SSH_PORT},${HTTP_PORT},${HTTPS_PORT}"
 
 # -- LAN --
 HOST_PORTS="${WEB_PORTS}"
@@ -158,6 +159,14 @@ do_start() {
     ${IPTABLES} -P OUTPUT DROP
     ${IPTABLES} -P FORWARD DROP
 
+    # Log-and-drop chain: NFLOG the packet then DROP, so explicitly dropped traffic
+    # (isolation crossings, port scans, invalid/SYN) is auditable in firewall.log
+    # rather than only default-policy fall-through. Recreated fresh on every reload.
+    ${IPTABLES} -N LOGDROP 2>/dev/null
+    ${IPTABLES} -F LOGDROP
+    ${IPTABLES} -A LOGDROP -j NFLOG --nflog-group 1 --nflog-prefix "DROP: "
+    ${IPTABLES} -A LOGDROP -j DROP
+
     # Allow all loopback traffic (required for local processes)
     append_rule "INPUT -i lo -j ACCEPT"
     append_rule "OUTPUT -o lo -j ACCEPT"
@@ -165,25 +174,28 @@ do_start() {
     # Allow ICMP echo-request (ping) with rate limiting
     append_rule "INPUT -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT"
     append_rule "OUTPUT -p icmp -j ACCEPT"
-    append_rule "FORWARD -p icmp -j ACCEPT"
+    # Forwarded ICMP only toward the WAN (ping/traceroute/PMTU out); return traffic
+    # rides ESTABLISHED,RELATED. Unqualified here would let VMs ping across the
+    # isolation boundary.
+    append_rule "FORWARD -p icmp -o ${WAN_IFACE} -j ACCEPT"
 
     # Allow host to connect to Docker containers on bridge interfaces
     append_rule "OUTPUT -o br+ -p tcp --match multiport --dports ${DOCKER_PORTS} -j ACCEPT"
 
-    # Allow host to SSH to VMs on VirtualBox interfaces
-    append_rule "OUTPUT -o vboxnet+ -p tcp --dport ${SSH_PORT} -j ACCEPT"
+    # Allow host to SSH to VMs on libvirt bridges
+    append_rule "OUTPUT -o vm+ -p tcp --dport ${SSH_PORT} -j ACCEPT"
 
     # Drop invalid packets before processing
-    append_rule "INPUT -m conntrack --ctstate INVALID -j DROP"
-    append_rule "OUTPUT -m conntrack --ctstate INVALID -j DROP"
-    append_rule "FORWARD -m conntrack --ctstate INVALID -j DROP"
+    append_rule "INPUT -m conntrack --ctstate INVALID -j LOGDROP"
+    append_rule "OUTPUT -m conntrack --ctstate INVALID -j LOGDROP"
+    append_rule "FORWARD -m conntrack --ctstate INVALID -j LOGDROP"
 
     # Allow ESTABLISHED and RELATED connections (return traffic for existing connections)
     append_rule "INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # Drop all incoming connection attempts (this is a client-only host)
-    append_rule "INPUT -p tcp --syn -j DROP"
+    append_rule "INPUT -p tcp --syn -j LOGDROP"
 
     # -- DOCKER BLOCKING (default: no internet for Docker) --
     # Block Docker containers from accessing the internet by default
@@ -195,53 +207,49 @@ do_start() {
     # VMs on different virtual networks are not allowed to communicate with each other.
     # Cross-network forwarding is explicitly blocked here rather than relying solely on
     # the default DROP policy, so isolation holds regardless of policy changes.
-    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WEB_IFACE} -j DROP"
-    append_rule "FORWARD -i ${MAIL_IFACE} -o ${DEVELOP_IFACE} -j DROP"
-    append_rule "FORWARD -i ${WEB_IFACE} -o ${MAIL_IFACE} -j DROP"
-    append_rule "FORWARD -i ${WEB_IFACE} -o ${DEVELOP_IFACE} -j DROP"
-    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${MAIL_IFACE} -j DROP"
-    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WEB_IFACE} -j DROP"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${WEB_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${MAIL_IFACE} -o ${DEVELOP_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${MAIL_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${WEB_IFACE} -o ${DEVELOP_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${MAIL_IFACE} -j LOGDROP"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WEB_IFACE} -j LOGDROP"
 
-    # -- VM FORWARDING RULES --
-    # Allow Mail VMs to initiate outbound connections to specific ports (IMAP/SMTP)
-    append_rule "FORWARD -p tcp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${IONOS_VM} --match multiport --dports ${IONOS_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
-    append_rule "FORWARD -p tcp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${GMAIL_VM} --match multiport --dports ${GMAIL_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    # -- VM FORWARDING RULES (per-network egress on role ports) --
+    # Mail net: IMAP/SMTP/submission + HTTPS
+    append_rule "FORWARD -p tcp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${MAIL_NET} --match multiport --dports ${MAIL_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -i ${MAIL_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${MAIL_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
-    # Allow Web VM to initiate outbound connections to HTTP/HTTPS ports
-    append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${WEB_VM} --match multiport --dports ${WEB_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
-    append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${CLAUDE_VM} --match multiport --dports ${CLAUDE_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    # Web net: HTTP/HTTPS browsing
+    append_rule "FORWARD -p tcp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${WEB_NET} --match multiport --dports ${WEB_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -i ${WEB_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${WEB_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
-    # Allow Development VM to initiate outbound connections to HTTP/HTTPS ports (apt, package updates)
-    append_rule "FORWARD -p tcp -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -s ${OSDEV_VM} --match multiport --dports ${OSDEV_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
+    # Develop net: SSH (git) + HTTP/HTTPS (apt, package fetch)
+    append_rule "FORWARD -p tcp -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -s ${DEVELOP_NET} --match multiport --dports ${DEVELOP_PORTS} -m conntrack --ctstate NEW -j ACCEPT"
     append_rule "FORWARD -i ${DEVELOP_IFACE} -o ${WAN_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
     append_rule "FORWARD -i ${WAN_IFACE} -o ${DEVELOP_IFACE} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT"
 
     # -- DNS FORWARDING FOR VMs --
     # VMs use their router IP as DNS server, which we redirect to the actual DNS server
     # Pattern: PREROUTING DNAT (redirect to DNS) -> FORWARD (allow) -> POSTROUTING MASQUERADE (NAT reply)
+    # The FORWARD accept is pinned to the real resolver (post-DNAT dst), so a VM
+    # aiming UDP/53 straight at an external resolver is not forwarded -- DNS is forced.
 
-    # Mail VMs DNS forwarding
+    # Mail net DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${MAIL_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -i ${MAIL_IFACE} -p udp -s ${IONOS_VM} --dport ${DNS_PORT} -j ACCEPT"
-    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${IONOS_VM} -j MASQUERADE"
-    append_rule "FORWARD -i ${MAIL_IFACE} -p udp -s ${GMAIL_VM} --dport ${DNS_PORT} -j ACCEPT"
-    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${GMAIL_VM} -j MASQUERADE"
+    append_rule "FORWARD -i ${MAIL_IFACE} -p udp -s ${MAIL_NET} -d ${DNS} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${MAIL_NET} -j MASQUERADE"
 
-    # Web VMs DNS forwarding
+    # Web net DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${WEB_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -i ${WEB_IFACE} -p udp -s ${WEB_VM} --dport ${DNS_PORT} -j ACCEPT"
-    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${WEB_VM} -j MASQUERADE"
-    append_rule "FORWARD -i ${WEB_IFACE} -p udp -s ${CLAUDE_VM} --dport ${DNS_PORT} -j ACCEPT"
-    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${CLAUDE_VM} -j MASQUERADE"
+    append_rule "FORWARD -i ${WEB_IFACE} -p udp -s ${WEB_NET} -d ${DNS} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${WEB_NET} -j MASQUERADE"
 
-    # Development VM DNS forwarding
+    # Develop net DNS forwarding
     append_rule "PREROUTING -t nat -p udp --dport ${DNS_PORT} -d ${DEVELOP_ROUTER} -j DNAT --to-destination ${DNS}"
-    append_rule "FORWARD -i ${DEVELOP_IFACE} -p udp -s ${OSDEV_VM} --dport ${DNS_PORT} -j ACCEPT"
-    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${OSDEV_VM} -j MASQUERADE"
+    append_rule "FORWARD -i ${DEVELOP_IFACE} -p udp -s ${DEVELOP_NET} -d ${DNS} --dport ${DNS_PORT} -j ACCEPT"
+    append_rule "POSTROUTING -t nat -p udp --sport ${DNS_PORT} -d ${DEVELOP_NET} -j MASQUERADE"
 
     # NAT for all outbound WAN traffic from VMs
     append_rule "POSTROUTING -t nat -o ${WAN_IFACE} -j MASQUERADE"
@@ -249,17 +257,16 @@ do_start() {
     # Allow SSH on the host (outbound only)
     append_rule "OUTPUT -p tcp -s ${PC} --dport ${SSH_PORT} -j ACCEPT"
 
-    # Allow QUIC protocol (UDP/443) for Web, Claude and Gmail VMs (HTTP/3)
-    append_rule "FORWARD -p udp -s ${WEB_VM} --match multiport --dports ${HTTPS_PORT} -j ACCEPT"
-    append_rule "FORWARD -p udp -s ${CLAUDE_VM} --match multiport --dports ${HTTPS_PORT} -j ACCEPT"
-    append_rule "FORWARD -p udp -s ${GMAIL_VM} --dport ${HTTPS_PORT} -j ACCEPT"
+    # Allow QUIC protocol (UDP/443, HTTP/3) for the web and mail nets
+    append_rule "FORWARD -p udp -i ${WEB_IFACE} -o ${WAN_IFACE} -s ${WEB_NET} --dport ${HTTPS_PORT} -j ACCEPT"
+    append_rule "FORWARD -p udp -i ${MAIL_IFACE} -o ${WAN_IFACE} -s ${MAIL_NET} --dport ${HTTPS_PORT} -j ACCEPT"
 
     # -- PORT SCAN DETECTION --
     # Drop suspicious TCP flag combinations used in port scanning
-    append_rule "INPUT -p tcp --tcp-flags ALL NONE -j DROP"  # NULL scan
-    append_rule "INPUT -p tcp --tcp-flags ALL ALL -j DROP"   # XMAS scan
-    append_rule "INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j DROP"
-    append_rule "INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j DROP"
+    append_rule "INPUT -p tcp --tcp-flags ALL NONE -j LOGDROP"  # NULL scan
+    append_rule "INPUT -p tcp --tcp-flags ALL ALL -j LOGDROP"   # XMAS scan
+    append_rule "INPUT -p tcp --tcp-flags SYN,FIN SYN,FIN -j LOGDROP"
+    append_rule "INPUT -p tcp --tcp-flags SYN,RST SYN,RST -j LOGDROP"
 
     # -- FALLBACK RULES (catch-all for unmatched traffic) --
     # Log dropped packets to dedicated file via ulogd2 (see /var/log/ulog/firewall.log)

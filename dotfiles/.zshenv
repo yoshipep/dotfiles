@@ -12,6 +12,8 @@ export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:/usr/local/go/
 export MAKEFLAGS="-j$(nproc)"
 export WORKON_HOME="$HOME/.virtualenvs"
 export CMAKE_EXPORT_COMPILE_COMMANDS=ON
+# VMs live in the privileged libvirt instance; make virsh/virt-manager target it
+export LIBVIRT_DEFAULT_URI=qemu:///system
 # Prefer neovim, fall back to vim then vi, so EDITOR is valid on any box.
 for _ed in nvim vim vi; do
 	command -v "$_ed" >/dev/null 2>&1 && { export EDITOR="$_ed"; break; }

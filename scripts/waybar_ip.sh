@@ -5,6 +5,6 @@
 # Falls back to the first non-virtual global address if there is no default route.
 ip=$(ip -4 route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+')
 [ -z "$ip" ] && ip=$(ip -4 -o addr show scope global |
-	grep -vE ' (docker|br-|veth|virbr|vboxnet|tun|tap)' |
+	grep -vE ' (docker|br-|veth|virbr|vm|tun|tap)' |
 	grep -oP '(?<=inet )\d+\.\d+\.\d+\.\d+' | head -1)
 printf '{"text":"%s","tooltip":"IP address"}' "$ip"

@@ -230,18 +230,37 @@ installNode() {
 	npm i -g neovim yarn bash-language-server prettier
 }
 
-# VirtualBox (apt via Oracle repo). Root, full-mode.
-installVirtualBox() {
-	echo "[!] Installing VirtualBox..."
-	wget -O- https://www.virtualbox.org/download/oracle_vbox_2016.asc | sudo gpg --yes --output /usr/share/keyrings/oracle-virtualbox-2016.gpg --dearmor
-	# VirtualBox repo uses bookworm for trixie (no trixie repo yet)
-	local VB_CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
-	[[ "$VB_CODENAME" == "trixie" ]] && VB_CODENAME="bookworm"
-	echo "deb [arch=amd64 signed-by=/usr/share/keyrings/oracle-virtualbox-2016.gpg] https://download.virtualbox.org/virtualbox/debian ${VB_CODENAME} contrib" | \
-		sudo tee /etc/apt/sources.list.d/virtualbox.list > /dev/null
-	sudo apt update
-	local VB_PKG=$(apt-cache search virtualbox | grep -oP '^virtualbox-\d+\.\d+' | sort -V | tail -1)
-	$INSTALL "$VB_PKG" || echo "[!] Warning: VirtualBox could not be installed (missing dependencies for this distro version). Skipping."
+# QEMU/KVM + libvirt + virt-manager (apt). Root, full-mode.
+# Replaces VirtualBox: native Wayland client (clean keyboard-shortcuts-inhibit grab)
+# and real virtio-gpu. VMs run on qemu:///system so the bridges are host-visible and
+# firewall.sh can filter them. x86-only base; qemu-system-arm for the aarch64 kernel
+# work is installed by hand when needed, not part of the standard environment.
+installLibvirt() {
+	echo "[!] Installing QEMU/KVM + libvirt + virt-manager..."
+	$INSTALL qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients \
+		virt-manager virt-viewer ovmf virtiofsd
+
+	# Manage VMs and networks without root.
+	sudo usermod -a -G libvirt,kvm "$USER"
+
+	# libvirtd is socket-activated on Debian 13, but enable it so net-autostart is
+	# honored at boot.
+	sudo systemctl enable --now libvirtd
+
+	# Drop libvirt's stock 'default' NAT network: it injects its own MASQUERADE and
+	# FORWARD ACCEPT rules that fight the default-DROP firewall. Our nets use
+	# forward mode=open (zero libvirt rules), leaving firewall.sh authoritative.
+	sudo virsh net-destroy default 2>/dev/null || true
+	sudo virsh net-autostart default --disable 2>/dev/null || true
+	sudo virsh net-undefine default 2>/dev/null || true
+
+	# Define and autostart the three isolated VM networks (vmmail/vmweb/vmdev).
+	for xml in "$REPO_DIR"/dotfiles/libvirt/*.xml; do
+		netname=$(sed -n 's:.*<name>\(.*\)</name>.*:\1:p' "$xml")
+		sudo virsh net-define "$xml"
+		sudo virsh net-autostart "$netname"
+		sudo virsh net-start "$netname" 2>/dev/null || true
+	done
 }
 
 # Docker CE (apt via Docker repo). Root, full-mode.
@@ -602,12 +621,16 @@ installNetwork() {
 	fi
 
 	if [ -z "$WAN_IFACE" ]; then
-		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vbox|docker|br-)/ {print $2; exit}')
+		WAN_IFACE=$(ip -o link show | awk -F': ' '$2 !~ /^(lo|vm|virbr|docker|br-)/ {print $2; exit}')
 		if [ -z "$WAN_IFACE" ]; then
 			echo "[!] ERROR: Could not auto-detect network interface. Please specify WAN_IFACE in network.conf"
 			exit 1
 		fi
 		echo "[+] Auto-detected network interface: $WAN_IFACE"
+		# Persist it: the template ships WAN_IFACE empty and neither firewall.sh nor
+		# network-static.sh has a runtime fallback, so the copy landing in
+		# /etc/network.conf must carry a concrete interface name.
+		sed -i "s|^WAN_IFACE=.*|WAN_IFACE=${WAN_IFACE}|" "$REPO_DIR/network.conf"
 	fi
 
 	NETMASK="${NETMASK:-24}"
@@ -777,15 +800,15 @@ reg gdb          installGdb            y "syspkgs-full"               "GDB from 
 reg gef-gep      installGefGep         y "gdb"                        "GEF + GEP (gdb plugins)"
 reg lazydocker   installLazydocker     n "go"                         "lazydocker"
 reg docker       installDocker         y ""                           "Docker CE"
-reg virtualbox   installVirtualBox     y ""                           "VirtualBox"
+reg libvirt      installLibvirt        y ""                           "QEMU/KVM + libvirt + virt-manager"
 reg network      installNetwork        y "docker"                     "Firewall + static IP + services + compose"
 reg sway         installSway           y "syspkgs-core config font alacritty plugins" "Sway desktop: WM, waybar, launcher, screenshot, portals"
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
-CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
 
-PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node virtualbox docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).
@@ -827,7 +850,7 @@ comp_available() {
 	os_gated "$c" && return 1
 	[ "${COMP_ROOT[$c]}" = "y" ] && [ "$CAN_ROOT" -eq 0 ] && return 1
 	case "$c" in
-		syspkgs-core|syspkgs-full|docker|virtualbox|network|removesnap)
+		syspkgs-core|syspkgs-full|docker|libvirt|network|removesnap)
 			[ "$HAS_APT" -eq 1 ] || return 1 ;;
 	esac
 	return 0
@@ -944,7 +967,7 @@ run_selection() {
 echo "[!] Installation script by Josep Comes (Debian/Ubuntu, apt-based)."
 echo ""
 [ "$CAN_ROOT" -eq 1 ] && echo "[*] root: available" || echo "[*] root: NONE — apt/system components will be skipped"
-[ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/vbox/network unavailable on this box"
+[ "$HAS_APT" -eq 1 ] || echo "[*] apt: not found — syspkgs/docker/libvirt/network unavailable on this box"
 [ "$OLD_OS" -eq 1 ] && echo "[*] OS: $DISTRO $OS_VERSION is below the $OS_MIN_REQ minimum — GUI/full components gated to config + dev-core (override: ALLOW_OLD_OS=1)"
 echo ""
 echo "[?] Choose what to install:"

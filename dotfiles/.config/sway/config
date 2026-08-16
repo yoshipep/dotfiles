@@ -41,6 +41,9 @@ bindsym $alt+Shift+q kill
 # App launcher
 bindsym $mod+d exec fuzzel
 
+# VM launcher (pick a libvirt domain, open it fullscreen via virt-viewer)
+bindsym Control+$alt+v exec ~/scripts/vm-menu.sh
+
 # Focus windows (Super+Arrows)
 bindsym $mod+Left focus left
 bindsym $mod+Down focus down
