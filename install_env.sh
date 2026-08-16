@@ -541,9 +541,10 @@ installSway() {
 	echo "[!] Installing Sway desktop..."
 	# grim: flameshot captures via xdg-desktop-portal-wlr, which shells out to grim.
 	# Do NOT drop it — without grim the portal fails with "unable to capture screen".
+	# jq: scripts/vm-shutdown.sh reads the focused window's PID out of `swaymsg -t get_tree`.
 	# brightnessctl: drives the backlight keys; dotfiles/backlight.rules grants it write access.
 	$INSTALL sway swaybg swayidle gtklock fuzzel gammastep flameshot grim imagemagick \
-		mako-notifier mate-polkit brightnessctl \
+		mako-notifier mate-polkit jq brightnessctl \
 		udiskie ntfs-3g exfatprogs \
 		waybar xdg-desktop-portal-wlr xdg-desktop-portal-gtk \
 		pipewire pipewire-pulse wireplumber
