@@ -67,6 +67,7 @@ Wayland desktop ported from i3, themed gruvbox throughout:
 - **fuzzel** launcher (`$mod+d`) and wifi picker — clicking the waybar wifi icon runs `scripts/wifi-menu.sh` (nmcli networks in fuzzel, connect with a masked password prompt).
 - **mako** notifications (per-urgency color/opacity, 5 s auto-close), **mate-polkit** auth agent, **gammastep** color temperature — all autostarted.
 - **flameshot** screenshots via `xdg-desktop-portal-wlr` (which shells out to `grim`) — `$mod+x` region, `Print` fullscreen → `~/Pictures` + clipboard
+- **VMs** — `Ctrl+Alt+v` picks a libvirt domain in fuzzel and opens it fullscreen in virt-viewer (`scripts/vm-menu.sh`). `Ctrl+Alt+Del` shuts down the VM in the focused window, `Ctrl+Alt+Shift+Del` forces it off (`scripts/vm-shutdown.sh`). Both binds are `--inhibited` so they still reach sway through virt-viewer's fullscreen keyboard grab — which also means the guest never receives `Ctrl+Alt+Del` itself (use virt-viewer's *Send key* menu). **Each guest needs `qemu-guest-agent` installed**; without it the shutdown falls back to the ACPI power button, which a guest with no `acpid` and no logind session ignores silently.
 - terminal: **alacritty** (`Ctrl+Alt+t`)
 - **wallpaper**: `swaybg` paints `~/wallpaper.{jpg,jpeg,png}` on the first frame (falls back to a solid color)
 

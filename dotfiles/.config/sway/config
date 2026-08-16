@@ -44,10 +44,10 @@ bindsym $mod+d exec fuzzel
 # VM launcher (pick a libvirt domain, open it fullscreen via virt-viewer)
 bindsym Control+$alt+v exec ~/scripts/vm-menu.sh
 
-# Power off the VM in the focused window: ACPI shutdown, or +Shift to force off.
-# Sway swallows these, so the guest never sees Ctrl+Alt+Del itself.
-bindsym Control+$alt+Delete exec ~/scripts/vm-shutdown.sh
-bindsym Control+$alt+Shift+Delete exec ~/scripts/vm-shutdown.sh --force
+# --inhibited: virt-viewer's fullscreen keyboard grab disables normal bindings, so
+# without it these two never reach Sway while a VM has focus. Needs sway >= 1.6.
+bindsym --inhibited Control+$alt+Delete exec ~/scripts/vm-shutdown.sh
+bindsym --inhibited Control+$alt+Shift+Delete exec ~/scripts/vm-shutdown.sh --force
 
 # Focus windows (Super+Arrows)
 bindsym $mod+Left focus left
