@@ -15,6 +15,7 @@
   },
   "alwaysThinkingEnabled": true,
   "cleanupPeriodDays": 90,
+  "defaultMode": "acceptEdits",
   "permissions": {
     "allow": [
       "Bash(ls:*)",
