@@ -91,13 +91,15 @@
         "return-type": "json",
         "interval": 10,
         "signal": 1,
+        "tooltip": false,
         "format": "{}"
     },
 
     "custom/hostname": {
-        "exec": "h=$(hostname -s); printf '{\"text\":\"%s\",\"tooltip\":\"Hostname\"}' \"$h\"",
+        "exec": "h=$(hostname -s); printf '{\"text\":\"%s\"}' \"$h\"",
         "return-type": "json",
         "interval": "once",
+        "tooltip": false,
         "format": " {} "
     },
 
@@ -105,11 +107,11 @@
         "format": "{:%d/%m/%Y %H:%M}",
         "interval": 1,
         "locale": "en_GB.UTF-8",
-        "tooltip-format": "<tt>{calendar}</tt>",
+        "tooltip-format": "<span font_family='Agave Nerd Font'>{calendar}</span>",
         "on-click": "$HOME/scripts/time-menu.sh",
         "calendar": {
             "mode": "month",
-            "mode-mon-col": 3,
+            "mode-mon-col": 2,
             "weeks-pos": "left",
             "on-scroll": 1,
             "format": {
