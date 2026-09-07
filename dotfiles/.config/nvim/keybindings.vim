@@ -89,3 +89,5 @@ nnoremap <silent> <leader>G :Git<CR>
 " --- gitsigns.nvim ---
 nnoremap <silent> <leader>hp :Gitsigns preview_hunk<CR>
 nnoremap <silent> <leader>rh :Gitsigns reset_hunk<CR>
+nnoremap <silent> ]c :Gitsigns next_hunk<CR>
+nnoremap <silent> [c :Gitsigns prev_hunk<CR>
