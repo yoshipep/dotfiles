@@ -1,0 +1,18 @@
+# Keep the firewall's egress path in step with the tunnel: when a wireguard/tun device
+# appears or disappears, resync the path sets rather than waiting for `net start`. This
+# matters most right after `net vpon` -- with the vpn switch on, the path sets hold
+# tunnel devices and NOTHING ELSE, so nothing egresses until this rule reconciles.
+#
+# Matched by device type (DEVTYPE=="wireguard", tun driver), not name, so no provider is
+# hardcoded. SUBSYSTEM=="net" alone would also match docker's per-container veth pairs,
+# each firing a pointless 20s settle wait.
+#
+# --skip-if-busy: `net vpon` runs its own settle and these fire alongside it, so this
+# avoids piling up redundant reconciles. systemd-run --no-block because udev kills
+# long-running RUN commands and gives them a stripped environment. See CLAUDE.md for the
+# killswitch behaviour this produces and how to read `net status` during that window.
+ENV{DEVTYPE}=="wireguard",  ACTION=="add|change", RUN+="/usr/bin/systemd-run --no-block /etc/firewall.sh vpn-sync-settle --skip-if-busy"
+ENV{DEVTYPE}=="wireguard",  ACTION=="remove",     RUN+="/usr/bin/systemd-run --no-block /etc/firewall.sh vpn-sync"
+
+SUBSYSTEM=="net", ENV{ID_NET_DRIVER}=="tun", ACTION=="add",    RUN+="/usr/bin/systemd-run --no-block /etc/firewall.sh vpn-sync-settle --skip-if-busy"
+SUBSYSTEM=="net", ENV{ID_NET_DRIVER}=="tun", ACTION=="remove", RUN+="/usr/bin/systemd-run --no-block /etc/firewall.sh vpn-sync"

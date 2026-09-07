@@ -1,82 +1,248 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Wrapper script for firewall.sh with simplified commands
 
-# on/off: Enable/disable host network access
-# don/doff: Enable/disable Docker network access
-# flush: Flush all iptables chains
-# start: Load firewall rules
-# status: Show current network status
-# config: Edit /etc/network.conf, reload Docker, and optionally apply to firewall
-# firewall: Edit /etc/firewall.sh and optionally reload
+fw_state() { sed -n "s/^$1=//p" /run/firewall.state 2>/dev/null | tr -d '[:space:]'; }
+fw_on()    { [[ "$(fw_state "$1")" == "1" ]] && echo ON || echo OFF; }
+
+print_state_summary() {
+	if [[ ! -r /run/firewall.state ]]; then
+		echo "[!] no state file -- the ruleset is deny-all; 'net start' to restore"
+		return 0
+	fi
+	local via cut="" upd="" i
+	[[ "$(fw_state tunnelled)" == "1" ]] && via="tunnelled" || via="direct"
+	printf '[+] host %s  docker %s  vpn %s  path %s (%s)\n' \
+		"$(fw_on host)" "$(fw_on docker)" "$(fw_on vpn)" "$(fw_state path)" "$via"
+
+	for i in vmmail vmweb vmdev; do
+		[[ "$(fw_state "$i")"          == "0" ]] && cut+="${cut:+, }${i}"
+		[[ "$(fw_state "${i}_update")" == "1" ]] && upd+="${upd:+, }${i}"
+	done
+	[[ -n "$cut" ]] && printf '[!] vm egress cut: %s\n' "$cut"
+	[[ -n "$upd" ]] && printf '[!] update window open: %s\n' "$upd"
+	return 0
+}
 
 if [[ "$1" == "on" ]]; then
 	ACTION="enable-net"
 elif [[ "$1" == "off" ]]; then
 	ACTION="disable-net"
+elif [[ "$1" == "vpon" || "$1" == "vpoff" || "$1" == "vprelay" ]]; then
+	VPN_CONFIG="/etc/vpn.conf"
+	# shellcheck source=/dev/null
+	[[ -r "$VPN_CONFIG" ]] && . "$VPN_CONFIG"
+
+	CLIENT_OUT=""
+	cleanup_client_out() { [[ -n "$CLIENT_OUT" ]] && rm -f "$CLIENT_OUT"; return 0; }
+	trap cleanup_client_out EXIT
+
+	run_client() {
+		[[ -n "$1" ]] || return 0
+		CLIENT_OUT=$(mktemp "${TMPDIR:-/tmp}/net-vpn.XXXXXX" 2>/dev/null) || CLIENT_OUT=""
+		if [[ -n "$CLIENT_OUT" ]]; then
+			setsid sh -c "$1" >"$CLIENT_OUT" 2>&1
+		else
+			setsid sh -c "$1" >/dev/null 2>&1
+		fi
+		return 0
+	}
+
+	show_client_out() {
+		[[ -n "$CLIENT_OUT" && -s "$CLIENT_OUT" ]] || return 0
+		echo "[!] ${1} said:" >&2
+		tail -n 10 "$CLIENT_OUT" | sed 's/^/    /' >&2
+	}
+
+	intent_state() { sed -n "s/^$1=//p" /run/firewall.intent 2>/dev/null | tr -d '[:space:]'; }
+
+	tun_devices() {
+		local p n f
+		for p in /sys/class/net/*; do
+			n=${p##*/}
+			[[ "$(cat "$p/operstate" 2>/dev/null)" == "down" ]] && continue
+			if [[ -r "$p/tun_flags" ]]; then
+				f=$(< "$p/tun_flags") || continue
+				(( f & 0x1 )) && echo "$n"
+			elif grep -qs '^DEVTYPE=wireguard$' "$p/uevent"; then
+				echo "$n"
+			fi
+		done
+	}
+
+	wait_no_tunnel() {
+		local n="$1" i
+		for ((i = 0; i < n; i++)); do
+			[[ -z "$(tun_devices)" ]] && return 0
+			sleep 1
+		done
+		return 1
+	}
+
+	if [[ "$1" == "vpon" || "$1" == "vprelay" ]]; then
+		# Firewall first: the client needs @vpn_endpoints/@vpn_control open to connect.
+		if [[ "$1" == "vprelay" ]]; then
+			client_cmd="${VPN_MENU_CMD:-}" ; client_key="VPN_MENU_CMD"
+		else
+			client_cmd="${VPN_UP_CMD:-}"   ; client_key="VPN_UP_CMD"
+		fi
+
+		prev_vpn=$(intent_state vpn)
+
+		sudo /etc/firewall.sh enable-vpn-net || exit 1
+		if [[ -z "$client_cmd" ]]; then
+			echo "[!] ${client_key} is not set in ${VPN_CONFIG}; the switch is on but nothing" >&2
+			echo "    was told to connect -- so nothing can egress. Set it with 'net vpn'." >&2
+		else
+			if [[ "$1" == "vprelay" ]]; then
+				CLIENT_OUT=$(mktemp "${TMPDIR:-/tmp}/net-vpn.XXXXXX" 2>/dev/null) || CLIENT_OUT=""
+				if [[ -n "$CLIENT_OUT" ]]; then
+					sh -c "$client_cmd" >"$CLIENT_OUT" 2>&1
+				else
+					sh -c "$client_cmd"
+				fi
+				rc=$?
+
+				# Escape rolls the switch back; a relay that fails to connect does not.
+				if (( rc == 130 )); then
+					if [[ "$prev_vpn" == "1" ]]; then
+						echo "[+] Cancelled; relay unchanged, vpn switch left ON"
+					else
+						sudo /etc/firewall.sh disable-vpn-net || exit 1
+						echo "[+] Cancelled; relay unchanged, vpn switch back OFF"
+					fi
+					pkill -RTMIN+11 waybar 2>/dev/null || true
+					tmux refresh-client -S 2>/dev/null || true
+					print_state_summary
+					exit 0
+				fi
+
+				if (( rc != 0 )); then
+					echo "[!] ${client_key} failed (exit ${rc})." >&2
+					show_client_out "$client_key"
+				fi
+			else
+				echo "[+] Connecting..."
+				run_client "$client_cmd"
+			fi
+
+			sudo /etc/firewall.sh vpn-sync-settle
+			settle_rc=$?
+
+			if (( settle_rc == 3 )); then
+				echo "[!] No tunnel came up. The switch is on, so nothing can egress" >&2
+				echo "    until one does. 'net vpoff' returns traffic to the wan." >&2
+				show_client_out "$client_key"
+			elif (( settle_rc != 0 )); then
+				echo "[!] vpn-sync-settle failed (exit ${settle_rc}); firewall state may be" >&2
+				echo "    inconsistent. Check 'net status'." >&2
+			fi
+		fi
+	else
+		# Disconnect before closing the path, or teardown fights a firewall already gone.
+		if [[ -n "${VPN_DOWN_CMD:-}" ]]; then
+			echo "[+] Disconnecting..."
+			run_client "$VPN_DOWN_CMD"
+			if ! wait_no_tunnel 15; then
+				echo "[!] Tunnel device still present after 15s; closing the path anyway." >&2
+				show_client_out "VPN_DOWN_CMD"
+			fi
+		fi
+		sudo /etc/firewall.sh disable-vpn-net || exit 1
+	fi
+
+	pkill -RTMIN+11 waybar 2>/dev/null || true
+	tmux refresh-client -S 2>/dev/null || true
+
+	print_state_summary
+	exit 0
 elif [[ "$1" == "don" ]]; then
 	ACTION="enable-docker-net"
 elif [[ "$1" == "doff" ]]; then
 	ACTION="disable-docker-net"
+elif [[ "$1" == "von" ]]; then
+	ACTION="enable-vm-net"
+elif [[ "$1" == "voff" ]]; then
+	ACTION="disable-vm-net"
+elif [[ "$1" == "vupdate" ]]; then
+	if [[ "$3" == "off" ]]; then
+		ACTION="disable-vm-update"
+		set -- "$1" "$2"	# drop the "off"; firewall.sh takes only the bridge
+	else
+		ACTION="enable-vm-update"
+	fi
+elif [[ "$1" == "check" ]]; then
+	if sudo /etc/firewall.sh check; then
+		echo "[+] Ruleset is valid"
+	else
+		echo "[!] Ruleset has errors -- NOT loaded" >&2
+		exit 1
+	fi
+	exit 0
 elif [[ "$1" == "flush" ]]; then
 	ACTION="$1"
 elif [[ "$1" == "start" ]]; then
 	ACTION="$1"
 elif [[ "$1" == "status" ]]; then
-	# Display current network status
-	host_status="unknown"
-	docker_status="unknown"
-
-	if [[ -f /etc/.fw_host_status ]]; then
-		host_val=$(cat /etc/.fw_host_status)
-		if [[ "$host_val" == "1" ]]; then
-			host_status="\033[0;31mON\033[0m"  # Red
-		else
-			host_status="\033[0;32mOFF\033[0m" # Green
+	sudo /etc/firewall.sh status | while read -r name val extra; do
+		if [[ "$name" == "path" ]]; then
+			if [[ "$extra" == "tunnelled" ]]; then
+				printf '%-8s %s (vpn)\n' "$name" "$val"
+			else
+				printf '%-8s %s (direct)\n' "$name" "$val"
+			fi
+			continue
 		fi
-	fi
-
-	if [[ -f /etc/.fw_docker_status ]]; then
-		docker_val=$(cat /etc/.fw_docker_status)
-		if [[ "$docker_val" == "1" ]]; then
-			docker_status="\033[0;31mON\033[0m"  # Red
-		else
-			docker_status="\033[0;32mOFF\033[0m" # Green
+		if [[ "$name" == "update" ]]; then
+			printf '%-8s \033[0;31m%s http/https, %s left\033[0m\n' "$name" "$val" "$extra"
+			continue
 		fi
-	fi
-
-	echo -e "Host network:   $host_status"
-	echo -e "Docker network: $docker_status"
+		if [[ "$name" == "vpn" ]]; then
+			if [[ "$val" == "ON" && "$extra" == "pending" ]]; then
+				printf '%-8s \033[0;33mON - no tunnel up, so nothing egresses\033[0m\n' "$name"
+			elif [[ "$val" == "ON" ]]; then
+				printf '%-8s \033[0;32mON\033[0m\n' "$name"
+			else
+				printf '%-8s \033[0;31mOFF\033[0m\n' "$name"
+			fi
+			continue
+		fi
+		if [[ "$val" == "ON" ]]; then
+			printf '%-8s \033[0;31mON\033[0m\n' "$name"
+		else
+			printf '%-8s \033[0;32mOFF\033[0m\n' "$name"
+		fi
+	done
 	exit 0
 elif [[ "$1" == "firewall" ]]; then
-	# Edit firewall script directly
-	FIREWALL_FILE="/etc/firewall.sh"
+	FIREWALL_FILE="/etc/firewall.nft"
 
 	if [[ ! -f "$FIREWALL_FILE" ]]; then
 		echo "[!] ERROR: Firewall script not found: $FIREWALL_FILE"
 		exit 1
 	fi
 
-	# Open in editor (requires sudo)
 	sudo ${EDITOR:-/opt/neovim/bin/nvim} "$FIREWALL_FILE"
 
 	echo "[+] Firewall script updated"
 	echo ""
 
-	# Ask if user wants to reload firewall
 	read -p "Reload firewall now? [Y/n]: " reload_fw
 	if [[ "$reload_fw" =~ ^[Nn]$ ]]; then
 		echo "[!] Firewall NOT reloaded. Run 'net start' to apply changes manually."
 		exit 0
 	fi
 
-	# Apply firewall changes
+	if ! sudo /etc/firewall.sh check; then
+		echo "[!] Ruleset has errors -- NOT reloaded. Fix them and run 'net start'." >&2
+		exit 1
+	fi
+
 	echo "[+] Reloading firewall..."
-	sudo /etc/firewall.sh start 'silent'
+	sudo /etc/firewall.sh start
 	tmux refresh-client -S 2>/dev/null || true
 	echo "[+] Firewall reloaded successfully!"
 	exit 0
 elif [[ "$1" == "config" ]]; then
-	# Edit system-wide network configuration
 	CONFIG_FILE="/etc/network.conf"
 
 	if [[ ! -f "$CONFIG_FILE" ]]; then
@@ -84,20 +250,17 @@ elif [[ "$1" == "config" ]]; then
 		exit 1
 	fi
 
-	# Open in editor (requires sudo)
 	sudo ${EDITOR:-/opt/neovim/bin/nvim} "$CONFIG_FILE"
 
 	echo "[+] Network configuration file updated"
 	echo ""
 
-	# Ask if user wants to apply changes
 	read -p "Apply changes now? (Docker + Firewall) [Y/n]: " apply_changes
 	if [[ "$apply_changes" =~ ^[Nn]$ ]]; then
 		echo "[!] Changes NOT applied. Run 'net config' again or 'net start' to apply manually."
 		exit 0
 	fi
 
-	# Reload Docker containers with new configuration
 	if [[ -d "$HOME/dockers" ]]; then
 		source "$CONFIG_FILE"
 		export DNS_SERVER HOST_IP GATEWAY NETMASK WAN_IFACE
@@ -105,41 +268,130 @@ elif [[ "$1" == "config" ]]; then
 		echo "[+] Restarting Docker containers with new configuration..."
 		for docker_dir in "$HOME/dockers/"*/; do
 			docker_name=$(basename "$docker_dir")
-			if [[ -f "$docker_dir/docker-compose.yml" ]]; then
-				echo "    Restarting $docker_name..."
-				docker compose -f "$docker_dir/docker-compose.yml" down
-				docker compose -f "$docker_dir/docker-compose.yml" up -d
-			elif [[ -f "$docker_dir/docker-compose.yaml" ]]; then
-				echo "    Restarting $docker_name..."
-				docker compose -f "$docker_dir/docker-compose.yaml" down
-				docker compose -f "$docker_dir/docker-compose.yaml" up -d
+
+			compose_file=""
+			[[ -f "$docker_dir/docker-compose.yml"  ]] && compose_file="$docker_dir/docker-compose.yml"
+			[[ -f "$docker_dir/docker-compose.yaml" ]] && compose_file="$docker_dir/docker-compose.yaml"
+			[[ -n "$compose_file" ]] || continue
+
+			# Skip stacks that don't consume network.conf, and stopped ones (a
+			# restart would start them).
+			grep -qE '\$\{?(DNS_SERVER|HOST_IP|GATEWAY|WAN_IFACE|NETMASK)\}?' "$compose_file" || continue
+			if [[ -z "$(docker compose -f "$compose_file" ps --status running -q 2>/dev/null)" ]]; then
+				echo "    Skipping $docker_name (not running)"
+				continue
 			fi
+
+			echo "    Restarting $docker_name..."
+			docker compose -f "$compose_file" down
+			docker compose -f "$compose_file" up -d
 		done
 		echo "[+] Docker containers reloaded"
 	fi
 
-	# Apply firewall changes
 	echo "[+] Applying firewall configuration..."
-	sudo /etc/firewall.sh start 'silent'
+	sudo /etc/firewall.sh start
 	tmux refresh-client -S 2>/dev/null || true
 	echo "[+] Firewall reloaded with new configuration"
 	echo "[+] All changes applied successfully!"
 	exit 0
+elif [[ "$1" == "vpn" ]]; then
+	VPN_CONFIG="/etc/vpn.conf"
+
+	if [[ ! -f "$VPN_CONFIG" ]]; then
+		echo "[+] No VPN config yet, creating $VPN_CONFIG"
+		sudo tee "$VPN_CONFIG" >/dev/null <<-'EOF'
+			# VPN configuration. Removing this file disables every VPN path in the
+			# firewall and hides the waybar module entirely.
+
+			# Resolver to use while the tunnel holds the default route. REQUIRED if
+			# you use a VPN: the LAN resolver is unreachable once the tunnel owns the
+			# route, so leaving this empty means DNS stops while connected.
+			VPN_DNS=
+
+			# Override for the server address as "IP:PORT". Normally leave empty —
+			# the firewall learns it from the live tunnel.
+			VPN_ENDPOINT=
+
+			# In-tunnel address the client probes to confirm it's connected, as
+			# "IP:PORT" (mullvad: 10.64.0.1:1337). REQUIRED if your client has such
+			# a check -- with `net off` the host has no egress, so the probe would
+			# be dropped and the tunnel never establishes. Space-separated for more
+			# than one.
+			VPN_CONTROL="10.64.0.1:1337"
+
+			# NOTE: VPN_STRICT is gone, and setting it does nothing. `net vpon`
+			# selects the tunnel as the path for everything that is allowed out,
+			# so there is no longer a mode to configure.
+
+			# How to connect and disconnect. Run by `net vpon` / `net vpoff`.
+			# Without VPN_UP_CMD the switch still flips but nothing connects,
+			# which with the switch on means nothing egresses at all.
+			VPN_UP_CMD=""
+			VPN_DOWN_CMD=""
+
+			# Relay picker, run by `net vprelay`. Expected to connect as well
+			# as choose, which is why vprelay flips the switch first.
+			VPN_MENU_CMD=""
+
+			# Prints what you are connected TO, for the waybar tooltip. Read
+			# by the status module only; it never changes any state.
+			#   mullvad: VPN_STATUS_CMD="mullvad status | head -1"
+			VPN_STATUS_CMD=""
+		EOF
+		sudo chown root:root "$VPN_CONFIG"
+		sudo chmod 644 "$VPN_CONFIG"
+	fi
+
+	before=$(sudo md5sum "$VPN_CONFIG" 2>/dev/null | cut -d' ' -f1)
+	sudo ${EDITOR:-/opt/neovim/bin/nvim} "$VPN_CONFIG"
+	after=$(sudo md5sum "$VPN_CONFIG" 2>/dev/null | cut -d' ' -f1)
+
+	if [[ "$before" == "$after" ]]; then
+		echo "[+] VPN configuration unchanged"
+		read -p "Resync the firewall anyway? [y/N]: " do_sync
+		[[ "$do_sync" =~ ^[Yy]$ ]] || { echo "[+] Nothing applied"; exit 0; }
+	else
+		echo "[+] VPN configuration updated"
+		read -p "Apply now? (resync firewall + waybar) [Y/n]: " do_sync
+		if [[ "$do_sync" =~ ^[Nn]$ ]]; then
+			echo "[!] NOT applied. Run 'net vpn' again, or 'net start', to apply."
+			exit 0
+		fi
+	fi
+
+	sudo /etc/firewall.sh vpn-sync
+	echo "[+] Firewall VPN state resynced"
+
+	pkill -RTMIN+11 waybar 2>/dev/null || true
+	tmux refresh-client -S 2>/dev/null || true
+	echo "[+] waybar VPN module refreshed"
+	exit 0
 else
-	echo "Usage: $0 [on|off|don|doff|flush|start|status|config|firewall]" 1>&2;
+	echo "Usage: $0 [on|off|vpon|vprelay|vpoff|don|doff|von|voff|vupdate|flush|start|check|status|config|firewall|vpn]" 1>&2;
 	echo "" 1>&2;
 	echo "Commands:" 1>&2;
-	echo "  on       - Enable host network access" 1>&2;
-	echo "  off      - Disable host network access" 1>&2;
-	echo "  don      - Enable Docker network access" 1>&2;
-	echo "  doff     - Disable Docker network access" 1>&2;
-	echo "  flush    - Flush all iptables rules" 1>&2;
-	echo "  start    - Load/restart firewall rules" 1>&2;
-	echo "  status   - Show current network status" 1>&2;
-	echo "  config   - Edit network config, reload Docker, and optionally apply to firewall" 1>&2;
-	echo "  firewall - Edit firewall script and optionally reload" 1>&2;
+	echo "  on                     - Allow the host to egress" 1>&2;
+	echo "  off                    - Deny it" 1>&2;
+	echo "  vpon                   - Connect the VPN and route everything permitted through it" 1>&2;
+	echo "  vprelay                - Pick a relay (fuzzel), set it and reconnect" 1>&2;
+	echo "  vpoff                  - Disconnect it and go back out the wan" 1>&2;
+	echo "  don                    - Enable Docker network access" 1>&2;
+	echo "  doff                   - Disable Docker network access" 1>&2;
+	echo "  von  <n>               - Enable egress for one vm bridge (mail|web|dev)" 1>&2;
+	echo "  voff <n>               - Disable it, and cut its live connections" 1>&2;
+	echo "  vupdate <n> [mins|off] - Temporary http/https for apt; expires on its own" 1>&2;
+	echo "  flush                  - Reduce to deny-all: closed, not open. net start restores" 1>&2;
+	echo "  start                  - Load/restart firewall rules" 1>&2;
+	echo "  check                  - Validate the ruleset without loading it" 1>&2;
+	echo "  status                 - Show current network status, and which path egress takes" 1>&2;
+	echo "  config                 - Edit network config, reload Docker, and optionally apply to firewall" 1>&2;
+	echo "  firewall               - Edit the nftables ruleset, check it, optionally reload" 1>&2;
+	echo "  vpn                    - Edit VPN resolver + client commands, then resync the path" 1>&2;
 	exit 1
 fi
 
-sudo /etc/firewall.sh "${ACTION}" 'silent'
+sudo /etc/firewall.sh "${ACTION}" "${@:2}" || exit 1
 tmux refresh-client -S 2>/dev/null || true
+
+print_state_summary

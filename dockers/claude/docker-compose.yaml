@@ -18,6 +18,8 @@ services:
       - ~/.claude/statusline.sh:/home/claude/.claude/statusline.sh
       - ~/.claude/settings.json:/home/claude/.claude/settings.json
       - ./global-CLAUDE.md:/home/claude/.claude/CLAUDE.md:ro
+    environment:
+      - CLAUDE_CONFIG_DIR=/home/claude/.claude
     stdin_open: true
     tty: true
     restart: unless-stopped

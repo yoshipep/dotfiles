@@ -5,3 +5,6 @@ dotfiles/.ssh/*.key
 
 # User-specific network configuration
 network.conf
+
+# Names the vpn provider in use
+vpn.conf

@@ -5,7 +5,7 @@
 
     "modules-left": ["sway/workspaces", "custom/todo"],
     "modules-center": ["sway/mode"],
-    "modules-right": ["network", "memory", "battery", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
+    "modules-right": ["network", "memory", "battery", "custom/vpn", "custom/firewall", "custom/docker", "pulseaudio", "custom/ip", "custom/hostname", "clock#time"],
 
     "sway/mode": {
         "format": " {} "
@@ -71,6 +71,14 @@
         "return-type": "json",
         "interval": 5,
         "signal": 10,
+        "tooltip": true
+    },
+
+    "custom/vpn": {
+        "exec": "$HOME/scripts/waybar_vpn_status.sh",
+        "return-type": "json",
+        "interval": 5,
+        "signal": 11,
         "tooltip": true
     },
 

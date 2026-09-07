@@ -670,6 +670,16 @@ installNetwork() {
 		cp -r "$docker_dir"* "$HOME/dockers/$docker_name/"
 	done
 
+	# Shared class-networks, created before any compose stack needs them -- external to
+	# every project so they outlive a single `compose down`, and host-reachable so
+	# they're browsable by a human. Bridge names are pinned because firewall.nft matches
+	# on them by name; left alone docker invents br-<hash>, which no rule names and the
+	# host can't reach.
+	docker network inspect devnet >/dev/null 2>&1 || \
+		docker network create --opt com.docker.network.bridge.name=br-devnet devnet
+	docker network inspect hostnet >/dev/null 2>&1 || \
+		docker network create --opt com.docker.network.bridge.name=br-hostnet hostnet
+
 	echo "[+] Network configuration applied successfully"
 
 	# Start Docker containers with network config environment variables
@@ -682,10 +692,61 @@ installNetwork() {
 
 
 
+	# ipv6 is unused here and denied in every chain of firewall.nft. Generated rather than
+	# shipped as dotfiles: these are machine config, not user config. The reasoning lives in
+	# the files themselves, which is where someone debugging this will actually look.
 	read -r -p "[?] Disable ipv6 (y/n): " user_input
 	if [[ "$user_input" == "y" ]]; then
-		sudo /opt/neovim/bin/nvim /etc/default/grub
-		sudo update-grub
+		sudo tee /etc/sysctl.d/99-no-ipv6.conf > /dev/null << 'EOF'
+# ipv6 is unused on this machine and already denied in every chain of firewall.nft.
+# This removes v6 addressing/routing so nothing reaches for it in the first place.
+#
+# Deliberately NOT `ipv6.disable=1` on the kernel cmdline: that unregisters AF_INET6
+# outright, so a client binding a v6 socket before ever trying v4 fails with
+# EAFNOSUPPORT instead of falling back -- hits mullvad's userspace wireguard exactly
+# this way, reporting only "Failed to start connection to remote server", nothing
+# naming ipv6.
+#
+# NetworkManager overrides this per connection on activation, which is why
+# /etc/NetworkManager/conf.d/99-no-ipv6.conf exists alongside it.
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+		sudo chown root:root /etc/sysctl.d/99-no-ipv6.conf
+		sudo chmod 644 /etc/sysctl.d/99-no-ipv6.conf
+		sudo sysctl -p /etc/sysctl.d/99-no-ipv6.conf > /dev/null
+
+		if [ -d /etc/NetworkManager ]; then
+			sudo mkdir -p /etc/NetworkManager/conf.d
+			sudo tee /etc/NetworkManager/conf.d/99-no-ipv6.conf > /dev/null << 'EOF'
+# The sysctl above is applied at boot and then quietly undone: NetworkManager writes
+# disable_ipv6=0 on any interface whose connection has ipv6.method=auto, so a fe80::
+# address comes back after reboot. Measured, not assumed. Makes `disabled` the default.
+#
+# Only affects connections without their own stored ipv6.method -- profiles saved before
+# this file existed still need a one-time fix:
+#     sudo nmcli connection modify <name> ipv6.method disabled
+[connection]
+ipv6.method=disabled
+EOF
+			sudo chown root:root /etc/NetworkManager/conf.d/99-no-ipv6.conf
+			sudo chmod 644 /etc/NetworkManager/conf.d/99-no-ipv6.conf
+			sudo systemctl reload NetworkManager 2>/dev/null || true
+			echo "[*] ipv6 disabled via sysctl + NetworkManager"
+			echo "    Connections saved earlier keep their own ipv6.method. Fix each once:"
+			echo "      sudo nmcli connection modify <name> ipv6.method disabled"
+		else
+			echo "[*] ipv6 disabled via sysctl (no NetworkManager here)"
+		fi
+
+		# The check that matters. A machine can look correctly configured and still be
+		# unable to run a userspace vpn client, and that failure names nothing on its own.
+		if python3 -c 'import socket; socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).bind(("::",0))' 2>/dev/null; then
+			echo "[*] AF_INET6 still bindable, as it must be"
+		else
+			echo "[!] AF_INET6 is NOT bindable -- a userspace vpn client cannot start."
+			echo "    Remove ipv6.disable=1 from /etc/default/grub, then: sudo update-grub"
+		fi
 	fi
 
 	echo ""

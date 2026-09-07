@@ -1,0 +1,410 @@
+# nftables ruleset. Loaded by /etc/firewall.sh, which prepends the defines used here
+# ($WAN, $LAN, $HOST_ADDR, $MAIL_NET...). Not loadable on its own:
+# `net check` validates it, `net start` applies it.
+#
+# The resolver is deliberately NOT a define: it moves when a tunnel comes up, and a
+# define would need a full reload to change -- which empties every toggle set. It lives
+# in @dns_target and the @dns_rewrite map instead, both written at runtime by `vpn-sync`.
+#
+# Rules run top to bottom, first match wins. $NAME is a define, @name is a set.
+# A chain with `policy drop` denies anything that falls off the end.
+
+table inet fw
+delete table inet fw
+table ip fwnat
+delete table ip fwnat
+
+table inet fw {
+    # Toggle sets: rules test membership, the `net` verbs add or remove interface names.
+    # Empty set = that traffic is denied.
+    #
+    # WHO may egress and BY WHICH PATH are two independent questions answered by two
+    # different switches, and keeping them independent is the whole design -- this is the
+    # model the rest of the file builds on, referenced rather than repeated below:
+    #
+    #   who    `net on/off`   -> host_egress      `net don/doff` -> docker_egress
+    #                            (vm bridges are @vm_egress, one per bridge)
+    #   path   `net vpon/vpoff` decides what goes INTO those sets:
+    #            vpn off  ->  $WAN          traffic leaves directly
+    #            vpn on   ->  tunnel devs   traffic leaves through the tunnel
+    #
+    # So the vpn switch never grants anything. `net off` + `net don` + vpn on means
+    # containers egress through the tunnel and the host still gets nothing; `net on` +
+    # `net doff` + vpn on is the same sentence with the two swapped. A vpn is which path a
+    # granted permission takes, never the permission itself.
+    #
+    # Corollary worth stating because it is a feature, not a bug: with the vpn switch on
+    # and no tunnel up, these sets are EMPTY and nothing egresses at all, `net on` or not.
+    # Permitting the wan there would be precisely the untunnelled leak the switch exists to
+    # prevent, so the switch is a killswitch commitment rather than a preference.
+    set host_egress   { type ifname; comment "paths the host may egress by; empty = net off"; }
+    set docker_egress { type ifname; comment "paths containers may egress by; empty = net doff"; }
+
+    # The same path list, for vm bridges. Their permission is @vm_egress membership, so
+    # this only answers "by which route" -- separate from the two above, not gated by
+    # `net on`/`net don`.
+    set vm_paths { type ifname; comment "paths vm bridges may egress by"; }
+
+    # The lan is reached by the WAN, always, and only while `net on` -- the host
+    # permission above, expressed as a path that's always $WAN rather than whatever the
+    # vpn switch selected. Can't fold into @host_egress: with the vpn switch on that set
+    # holds tunnel devices only, so gating the lan on it would cut you off from your own
+    # router the moment the vpn came up. Gating it on nothing would leave the lan open
+    # under `net off`. Same permission, different (and fixed) path.
+    set host_lan { type ifname; comment "wan iface present => host may reach the lan"; }
+
+    # All three present by default; `net voff <n>` removes one to cut that bridge.
+    # A reload puts all three back, so a reload clears an incident rather than keeping it.
+    set vm_egress {
+        type ifname
+        elements = { "vmmail", "vmweb", "vmdev" }
+        comment "bridges allowed to egress; remove one to cut that vm off"
+    }
+
+    # Temporary http/https for package updates, one bridge at a time. Empty by default,
+    # and deliberately so -- this file is the reload state, so a reload or reboot revokes
+    # every grant; the only direction it can drift is closed.
+    #
+    # Kept separate from @mail_ports rather than adding 80/443 there: a role set states
+    # what that role is PERMANENTLY allowed (fw-test.sh asserts 443 is never in the mail
+    # one). Elements carry `flags timeout` so a forgotten grant self-revokes; `net
+    # vupdate <n>` sets the duration, `net vupdate <n> off` cuts it early. The set-level
+    # `timeout 30m` is only a fallback for an element added by hand -- tooling always
+    # names its own duration.
+    set vm_update {
+        type ifname
+        flags timeout
+        timeout 15m
+        comment "bridges holding a temporary http/https grant; empty by default"
+    }
+
+    # -- vpn -----------------------------------------------------------------------
+    # Nothing here names an interface. The helper fills these by device TYPE --
+    # wireguard, or tun/tap -- so any provider works without the repo knowing which.
+    #
+    # Filled from device EXISTENCE, not liveness: needed for the masquerade, the mss clamp
+    # and the rfc1918 exemption, all of which must apply to a tunnel that is up but not yet
+    # passing traffic. Liveness is read only to pick the resolver and to print the path.
+    set vpn_iface { type ifname; comment "tunnel devices currently up"; }
+
+    # The tunnel's own OUTER packets. Encapsulation is host output traffic on $WAN, so
+    # without this the tunnel dies at the next rekey the moment `net off` empties
+    # @host_egress. Deliberately above the toggles, and as narrow as it gets: the one
+    # address and port learned from the live tunnel.
+    set vpn_endpoints { type ipv4_addr . inet_service; comment "vpn server, learned not configured"; }
+
+    # The client's own in-tunnel control traffic -- its probe to decide whether it is
+    # "connected" (mullvad asks 10.64.0.1:1337). Provider-specific, so it's configured as
+    # VPN_CONTROL in /etc/vpn.conf and never named here.
+    #
+    # Needed because the client is a host process: without this, an empty @host_egress
+    # (`net off`) would silently block its own probe, so the tunnel never establishes --
+    # which would break `net off` + `net don` + vpn on, since the container egress it's
+    # meant to carry depends on the tunnel existing.
+    #
+    # Scoped to @vpn_iface below on purpose: the address is rfc1918 and output never jumps
+    # lateral_check, so unscoped this would permit a private-address packet out the wan.
+    # Scoped, it can only ever admit traffic INTO a tunnel -- one address, one port, one
+    # direction, nothing else granted.
+    set vpn_control { type ipv4_addr . inet_service; comment "client's in-tunnel probe; from VPN_CONTROL"; }
+
+    # Resolver in force right now: $DNS_SERVER normally, $VPN_DNS while a tunnel is up.
+    # A set, not a define, so the helper can swap it at runtime instead of needing a reload.
+    set dns_target { type ipv4_addr; comment "active resolver"; }
+
+    # Every rfc1918 range plus link-local: "anything that is not the internet".
+    set private_v4 {
+        type ipv4_addr
+        flags interval
+        elements = { 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16 }
+    }
+
+    set mail_ports   { type inet_service; elements = { 993, 587, 465 } }   # imap, submission, smtps
+    set web_ports    { type inet_service; elements = { 80, 443 } }
+    set docker_ports { type inet_service; elements = { 8080 } }  # container-side, not published
+
+    # Log-and-drop chains, one per reason so firewall.log says which rule fired.
+    # counter always counts; the rate limit only throttles the log line.
+    chain log_isolation {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-isolation: " group 1
+        drop
+    }
+
+    chain log_lateral {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-lateral: " group 1
+        drop
+    }
+
+    chain log_invalid {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-invalid: " group 1
+        drop
+    }
+
+    chain log_inbound {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-inbound: " group 1
+        drop
+    }
+
+    chain log_default {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-default: " group 1
+        drop
+    }
+
+    # ipv6 is unused here and denied everywhere. Disabled via the sysctl install_env.sh
+    # drops in /etc/sysctl.d, never via `ipv6.disable=1` on the kernel cmdline: that
+    # unregisters AF_INET6 outright, so a client binding a v6 socket before ever trying v4
+    # then fails with EAFNOSUPPORT instead of falling back -- hit this with mullvad's
+    # userspace wireguard, nothing in its log naming ipv6. These rules are the backstop
+    # for when the stack is present anyway.
+    chain log_ipv6 {
+        counter
+        limit rate 10/second burst 20 packets log prefix "fw-ipv6: " group 1
+        drop
+    }
+
+    chain input {
+        type filter hook input priority filter; policy drop;
+        meta nfproto ipv6 jump log_ipv6                 # no ipv6, loopback included
+        iif lo accept                                   # local processes
+        ct state established,related accept             # replies to what we started
+        ct state invalid jump log_invalid               # malformed or out of state
+        iifname "vm*" icmp type echo-request accept     # vms may ping the host
+        ip saddr $LAN icmp type echo-request accept     # lan may ping the host
+        iifname $WAN udp sport 67 udp dport 68 accept   # dhcp offer/ack; keep above the drop below
+        ip daddr { 224.0.0.0/4, 255.255.255.255 } drop  # mdns/ssdp noise, dropped unlogged
+        jump log_inbound                                # anything else: log, then drop
+    }
+
+    chain output {
+        type filter hook output priority filter; policy drop;
+        meta nfproto ipv6 jump log_ipv6
+        oif lo accept
+        ct state established,related accept
+        ct state invalid jump log_invalid
+        oifname "vm*" icmp type echo-request accept     # ping a vm
+        oifname $WAN udp sport 68 udp dport 67 accept   # dhcp discover/request; keep above the drop
+        ip daddr { 224.0.0.0/4, 255.255.255.255 } drop  # do not leak mdns/llmnr outward
+        # "docker0" deliberately absent: the internet-capable class is reached by
+        # `docker exec` only, so a container with a way out must not also get a
+        # host-facing port -- publishing one on it has no effect from the host, since
+        # this is the rule that would have carried the dnat'd packet the rest of the way.
+        #
+        # "br-devnet"/"br-hostnet" differ only in who else is on them (claude attaches to
+        # devnet, not hostnet); what actually enforces that split is the forward chain
+        # routing traffic between the two and lateral_check dropping it, not this rule.
+        #
+        # Pinned names, never a br-* wildcard, so the grant stays opt-in rather than every
+        # bridge docker invents for a cloned compose file inheriting it. Ports are
+        # container-side: docker rewrites the destination in nat output (priority -100)
+        # before this chain runs, so 127.0.0.1:8888:80 matches on 80, never 8888.
+        oifname { "br-devnet", "br-hostnet" } tcp dport @docker_ports accept  # reach a container
+        # vmdev only: vmmail/vmweb are driven entirely through their gui, so neither needs
+        # ssh, and "vm*" would hand the host a way into all three for the sake of one.
+        oifname "vmdev" tcp dport 22 accept             # ssh into the dev vm
+
+        # -- the lan: same permission as the internet, different (fixed) path ------------
+        # Reachable while `net on` (see @host_lan above), always by $WAN even when the vpn
+        # switch is on -- naming $WAN here is the fix for a real bug: with the switch on,
+        # @host_egress holds tunnel devices only, so a lan packet leaving by the wan
+        # matched nothing, and turning the vpn on cut the host off from its own router.
+        #
+        # Naming $WAN also means the lan is reachable by exactly ONE path: if something
+        # ever routed a lan-addressed packet into the tunnel instead, this rule wouldn't
+        # match it, so it's dropped rather than leaked to the provider (mullvad's "LAN
+        # Sharing" is what keeps the route local to begin with).
+        #
+        # No `ip saddr` guard: this is output, so the source is always one of the host's
+        # own addresses already. A guard rendered from HOST_IP only added a silent failure
+        # mode -- it stopped matching the moment the live address differed (a moved dhcp
+        # lease, a second nic), and host-to-lan ssh died with no rule left to explain why.
+        oifname @host_lan ip daddr $LAN ct state new accept   # the lan, while `net on`
+
+        # ssh to the lan, ungated -- the ONE service that survives `net off`. Deliberate,
+        # not an oversight: `net off` usually means "stop talking to the internet", not
+        # "cut every wire", and the session you typed it from is often ssh into a lan box.
+        # Reaching a machine you physically own, over a protocol that authenticates before
+        # doing anything, isn't the exposure `net off` exists to close.
+        #
+        # Scoped three ways, each load-bearing: $WAN (never a tunnel, same reasoning as
+        # above), $LAN (your own subnet only -- grants no route off it), tcp dport 22 (one
+        # port). Widening any one turns a stated exception back into the hole it replaced.
+        #
+        # Still doesn't open the host to inbound ssh: input stays policy-drop with no
+        # service accepts, and this rule is output -- it permits sessions this host opens,
+        # nothing anyone opens toward it.
+        oifname $WAN ip daddr $LAN tcp dport 22 ct state new accept   # ssh out, `net off` or not
+
+        # Outer tunnel packets and the client's readiness probe, both above the toggle on
+        # purpose -- they must survive `net off`, or the tunnel drops at rekey (endpoints)
+        # or can never come up at all (control probe, needed for `net off` + `net don` +
+        # vpn on to work). Both sets are empty until a tunnel/vpn switch is actually in
+        # play, so these are dead weight the rest of the time.
+        ip daddr . udp dport @vpn_endpoints ct state new accept
+        ip daddr . tcp dport @vpn_endpoints ct state new accept   # openvpn over tcp
+
+        oifname @vpn_iface ip daddr . tcp dport @vpn_control ct state new accept
+        oifname @vpn_iface ip daddr . udp dport @vpn_control ct state new accept
+
+        # One grant, one meaning: may the host open new connections. What the set CONTAINS
+        # -- the wan, or the tunnel devices -- is the vpn switch's business, not this rule's.
+        oifname @host_egress ct state new accept        # `net on` / `net off`
+        jump log_default
+    }
+
+    # "Not lateral movement, just leaving." Skips the rfc1918 drop for traffic entering a
+    # tunnel -- plenty of providers hand out rfc1918 addresses inside one, and without this
+    # every tunnelled packet would be eaten as though it were reaching for the lan.
+    #
+    # Written as a positive match + return, not `oifname != @vpn_iface` on the drop rule:
+    # with no tunnel up the set is empty, and negating against an empty set is exactly the
+    # kind of thing that's easy to assume and hard to notice getting wrong. This way the
+    # no-vpn case is provably identical to the rule before vpn support existed.
+    chain lateral_check {
+        oifname @vpn_iface return
+        ip daddr @private_v4 counter jump log_lateral
+    }
+
+    # The temporary half of vm_egress_ports, jumped to only for bridges in @vm_update.
+    # Per-bridge with the same saddr guard rather than one `iifname @vm_update` rule -- a
+    # grant isn't permission to spoof a neighbour's address. vmweb/vmdev already hold
+    # these ports permanently, so this is a no-op for them today; wired up anyway so `net
+    # vupdate` means the same thing on every bridge.
+    chain vm_update_ports {
+        iifname "vmmail" ip saddr $MAIL_NET tcp dport @web_ports counter ct state new accept
+        iifname "vmweb"  ip saddr $WEB_NET  tcp dport @web_ports counter ct state new accept
+        iifname "vmdev"  ip saddr $DEV_NET  tcp dport @web_ports counter ct state new accept
+    }
+
+    # Per-bridge egress ports. Which of the two ways out the packet actually takes is the
+    # routing table's business: a full-tunnel vpn owns the default route, so these take
+    # it without the firewall steering them.
+    chain vm_egress_ports {
+        iifname "vmmail" ip saddr $MAIL_NET tcp dport @mail_ports counter ct state new accept
+        iifname "vmweb"  ip saddr $WEB_NET  tcp dport @web_ports  counter ct state new accept
+        iifname "vmweb"  ip saddr $WEB_NET  udp dport 443         counter ct state new accept  # quic
+        iifname "vmdev"  ip saddr $DEV_NET  tcp dport @web_ports  counter ct state new accept
+
+        # Last, so the permanent policy is what reads first and the exception is visibly
+        # an exception. Empty set means this jump matches nothing, which is the normal case.
+        iifname @vm_update jump vm_update_ports
+    }
+
+    # Guard for the above, jumped to from forward for bridges in @vm_egress -- only
+    # traffic actually heading out gets the port rules. Defined after the chain it calls,
+    # matching this file's define-before-use order.
+    #
+    # One rule against @vm_paths, not two naming $WAN and @vpn_iface: that pair would
+    # permit BOTH routes always, so with the vpn switch on a vm packet that somehow left
+    # by the wan would still be accepted. @vm_paths holds only whichever route the switch
+    # actually selected (see the model at the top of this file), so one statement covers
+    # all three classes instead of two out of three.
+    chain vm_egress_rules {
+        oifname @vm_paths jump vm_egress_ports
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        meta nfproto ipv6 jump log_ipv6
+
+        # Containers/vms speak 1500; a tunnel is smaller (1380 on mullvad), and their
+        # stacks can't know that -- relying on pmtu discovery means relying on icmp
+        # nobody filters, not a bet worth making. Clamp mss on the way in instead, or
+        # tunnelled connections complete their handshake and hang on the first full-size
+        # packet, which looks like "docker has no internet" rather than an mtu problem.
+        oifname @vpn_iface tcp flags syn tcp option maxseg size set rt mtu
+
+        iifname { "docker*", "br-*" } oifname "vm*" counter jump log_lateral  # containers cannot reach vms
+
+        # No vm may reach another vm.
+        iifname "vmmail" oifname { "vmweb", "vmdev" }  counter jump log_isolation
+        iifname "vmweb"  oifname { "vmmail", "vmdev" } counter jump log_isolation
+        iifname "vmdev"  oifname { "vmmail", "vmweb" } counter jump log_isolation
+
+        ct state invalid jump log_invalid
+        ct state established,related accept             # isolation drops stay above this
+
+        # udp only, deliberately -- dns over tcp is not permitted anywhere in this ruleset.
+        # Do not "fix" a large-response failure by adding tcp/53 here. Above the lan block.
+        iifname @vm_egress ip daddr @dns_target udp dport 53 counter accept
+
+        iifname "vm*" jump lateral_check                # vms cannot touch the lan
+
+        iifname @vm_egress jump vm_egress_rules         # then the per-bridge ports
+
+        # No same-bridge accept here, and none is needed. There used to be one for
+        # docker0 on the theory that docker's bridge-nf-call-iptables=1 pushes switched
+        # frames through this hook -- measured, and it doesn't: br_netfilter isn't loaded
+        # (/proc/sys/net/bridge/bridge-nf-call-iptables doesn't exist), and that rule sat
+        # at `counter packets 0` while the dns rule below it had counted hundreds.
+        # Same-bridge traffic is switched at layer 2 and never reaches netfilter -- which
+        # is also why devnet containers find each other with no rule here naming them.
+        #
+        # Corollary worth writing down: this chain CANNOT deny container-to-container
+        # traffic within one bridge, so don't add a rule that appears to. Containers on
+        # docker0 are meant to be unable to reach each other -- anything needing a peer
+        # joins a shared network instead -- and the only thing that actually enforces
+        # that is `"icc": false` in /etc/docker/daemon.json.
+
+        # Egress is "docker*" only (docker0, the internet-capable class) -- "br-*" is
+        # deliberately absent, since devnet/hostnet have no way out at all and `net don`
+        # has nothing to hand them. So a container there never resolves or reaches
+        # anything external; same-bridge traffic is untouched (bridged, not routed, never
+        # reaches this hook), so wordpress still finds its db and claude still finds it.
+        iifname "docker*" oifname @docker_egress ip daddr @dns_target udp dport 53 counter accept  # cut by `net doff`
+
+        # Still both classes: this one drops. A no-internet container that tries the
+        # lan gets caught and logged here rather than falling through unexplained.
+        iifname { "docker*", "br-*" } jump lateral_check   # containers cannot touch the lan
+
+        # counter, like the dns rule above it: without one there is no way to tell a
+        # container that was refused here from one that was let out and failed later,
+        # and "docker has no internet" is exactly the report that needs telling apart.
+        iifname "docker*" oifname @docker_egress ct state new counter accept  # this is what `net don/doff` flips
+
+        jump log_default
+    }
+}
+
+table ip fwnat {
+    # Same contents as the set of the same name in `inet fw`. Sets are scoped to their
+    # table, so the nat table cannot reach that one and needs its own; `vpn-sync` writes
+    # both from one list, so they cannot drift.
+    set vpn_iface { type ifname; comment "tunnel devices currently up"; }
+
+    # Target of the dns rewrites below. A map, not a literal, so `vpn-sync` can point it
+    # at $VPN_DNS when a tunnel comes up and back at $DNS_SERVER when it goes -- editable
+    # at runtime, where a rendered-in address would need a reload.
+    map dns_rewrite { type ifname : ipv4_addr; }
+
+    chain prerouting {
+        type nat hook prerouting priority dstnat;
+        # vms point at their own bridge router for dns; rewrite that to whichever
+        # resolver is currently in force.
+        iifname "vmmail" ip daddr $MAIL_ROUTER udp dport 53 dnat to iifname map @dns_rewrite
+        iifname "vmweb"  ip daddr $WEB_ROUTER  udp dport 53 dnat to iifname map @dns_rewrite
+        iifname "vmdev"  ip daddr $DEV_ROUTER  udp dport 53 dnat to iifname map @dns_rewrite
+
+        # Containers get $DNS_SERVER handed to them by compose and can't be reconfigured
+        # from here, so their queries need the same rewrite -- otherwise they keep asking
+        # the lan resolver after a tunnel takes over, which is no longer in @dns_target,
+        # and lateral_check eats every query. Unguarded by destination on purpose: "dns
+        # via the forced resolver" is already the rule for this class.
+        iifname "docker0" udp dport 53 dnat to iifname map @dns_rewrite
+
+        # No br-* rule here: devnet/hostnet have no egress accept in forward at all, so a
+        # rewritten query would be dropped a hook later regardless -- rewriting a packet
+        # that can't leave would only make the ruleset read as though they have dns.
+    }
+    chain postrouting {
+        type nat hook postrouting priority srcnat;
+        oifname $WAN masquerade                         # vm/container traffic leaves as the host
+        # Same, one hop further in: the tunnel has its own address, so forwarded vm and
+        # container packets need translating to it or the far end has no return path.
+        oifname @vpn_iface masquerade
+    }
+}

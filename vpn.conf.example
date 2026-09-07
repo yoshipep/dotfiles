@@ -1,0 +1,72 @@
+# ============================================================================
+# VPN CONFIGURATION (optional)
+# ============================================================================
+# Only needed if you use a vpn. Copied to /etc/vpn.conf, mode 644 root:root --
+# read by firewall.sh (at boot), scripts/net and the waybar module. Separate
+# from network.conf: this is provider config, not topology.
+#
+# INSTRUCTIONS:
+#   1. sudo cp vpn.conf.example /etc/vpn.conf
+#   2. Fill in the values below
+#   3. net vpn      (edits it and resyncs the firewall + waybar in one step)
+#
+# If /etc/vpn.conf does not exist there is no vpn on this machine: every vpn
+# path in the firewall stays inert and the waybar module hides itself.
+#
+# IMPORTANT: Do NOT commit vpn.conf (it's in .gitignore)
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# FIREWALL
+# ---------------------------------------------------------------------------
+
+# Resolver to use while the tunnel holds the default route.
+# REQUIRED if you use a vpn -- your lan resolver becomes unreachable once
+# connected, so leaving this empty stops dns dead while connected. Don't trust
+# the documented default; providers move it (e.g. Mullvad's DNS Content
+# Blocker changes the address). Read it back instead:
+#   resolvectl status | grep -iA2 'current dns'
+# Example: VPN_DNS=10.64.0.1 (Mullvad) / 10.2.0.1 (Proton) / 103.86.96.100 (Nord)
+VPN_DNS=
+
+# Override for the vpn server's address and port, as "IP:PORT".
+# Normally LEAVE EMPTY -- the firewall learns it from the live tunnel. Set
+# only if detection fails. Space-separated for several.
+# Example: VPN_ENDPOINT="185.65.135.72:51820"
+VPN_ENDPOINT=
+
+# In-tunnel address your client probes to confirm it's connected, as "IP:PORT".
+# REQUIRED if your client does such a check (Mullvad does) -- without it the
+# probe is denied like any other host traffic and the client gives up.
+# Space-separated for several.
+# Example: VPN_CONTROL="10.64.0.1:1337"
+VPN_CONTROL=
+
+# ---------------------------------------------------------------------------
+# CLIENT COMMANDS
+# ---------------------------------------------------------------------------
+# Run AS YOU by scripts/net, never by firewall.sh. UP/DOWN/MENU are invoked
+# directly by `net vpon`/`net vpoff`/`net vprelay` -- the firewall switch and
+# the client move together in a fixed order, so these aren't just a waybar
+# convenience.
+
+# Connect. Leaving this empty means `net vpon` flips the switch and connects
+# nothing, so nothing egresses.
+# Example: VPN_UP_CMD="wg-quick up wg0"
+VPN_UP_CMD=""
+
+# Disconnect.
+# Example: VPN_DOWN_CMD="wg-quick down wg0"
+VPN_DOWN_CMD=""
+
+# Relay / location picker, run by `net vprelay`. Expected to CONNECT as well
+# as choose -- the bundled scripts/vpn-menu.sh ends in `mullvad relay set
+# location ... && mullvad connect`.
+# Example: VPN_MENU_CMD="$HOME/scripts/vpn-menu.sh"
+VPN_MENU_CMD=""
+
+# What you're connected to, for the waybar tooltip. Optional -- falls back to
+# the tunnel device name. Must only PRINT, never change anything; first line
+# of output is used.
+# Example: VPN_STATUS_CMD="mullvad status | head -1"
+VPN_STATUS_CMD=""

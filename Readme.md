@@ -80,25 +80,52 @@ All network settings load at runtime from `/etc/network.conf` — never hardcode
 ### Commands
 
 ```bash
-net on/off        # Enable/disable host internet access
-net don/doff      # Enable/disable Docker container internet access
-net status        # Show current host and Docker network state
-net config        # Edit /etc/network.conf, reload Docker + firewall
-net firewall      # Edit /etc/firewall.sh and optionally reload
-net start         # Reload firewall rules
-net flush         # Flush all iptables rules (emergency reset)
+net on/off                  # Enable/disable host internet access
+net don/doff                # Enable/disable internet for the internet-capable container class
+net von/voff <n>            # Enable/disable egress for one vm bridge (mail|web|dev)
+net vupdate <n> [mins|off]  # Lend a vm bridge http/https briefly, so apt works
+net vpon/vpoff              # Connect/disconnect the VPN, and route everything permitted through it
+net vprelay                 # Pick a relay (fuzzel), set it and reconnect
+net status                  # Show current state, read back from the live ruleset
+net check                   # Validate the ruleset without loading it
+net config                  # Edit /etc/network.conf, reload Docker + firewall
+net firewall                # Edit /etc/firewall.nft, check it, optionally reload
+net vpn                     # Edit /etc/vpn.conf, optionally resync
+net start                   # Reload the ruleset (atomic; removals apply too)
+net flush                   # Reduce to deny-all (closed, not open); net start to restore
 ```
+
+**Who may egress, and by which path, are separate questions.** `net on`, `net don` and `net von` say *who*. `net vpon`/`net vpoff` say *by which path* — VPN off routes everything out the WAN, VPN on routes everything permitted through the tunnel. The VPN switch grants egress to nobody: `net off` + `net don` + VPN on means containers egress through the tunnel while the host still gets nothing.
+
+**There is no master switch.** `net off` empties a set read only in the output chain, so VMs and internet-capable containers keep their egress — those accepts live in the forward chain. A host showing "offline" can still be NAT'ing a VM's browser to the internet.
 
 ### Firewall Architecture
 
-- Default DROP on INPUT, OUTPUT, FORWARD chains
-- VM isolation: three isolated libvirt bridges (`vmmail`, `vmweb`, `vmdev`) with per-network egress on role ports; cross-network traffic is dropped
-- Port scan detection (NULL, XMAS, malformed flags)
-- Firewall logs via NFLOG to `/var/log/ulog/firewall.log` (explicit drops routed through a log-and-drop chain, so isolation crossings are auditable)
+- nftables, in our own `table inet fw` (+ `table ip fwnat`) — Docker keeps its own tables and can't reorder ours
+- `policy drop` on input, output and forward. IPv6 is denied outright in every hook, not left to grub
+- Reloads are atomic, so editing a rule out of `/etc/firewall.nft` actually retracts it
+- **The host is a server to nobody.** No service accepts at all — only ping, from the LAN and VMs. Containers can't reach the host, not even to ping their own gateway
+- **SSH *out* to the LAN always works**, `net on` or `net off` — the one exception to "`net off` closes the LAN too", so cutting the internet never kills the SSH session you typed the command from
+- VM isolation: three libvirt bridges (`vmmail`, `vmweb`, `vmdev`), each with its own role ports; cross-bridge and LAN traffic is dropped (DNS excepted)
+- Containers cannot reach the vm bridges, in either toggle state
+- `net don` grants the internet, never the LAN — DNS is the one exception, resolved through a LAN machine
+- Toggles are named sets, so `net status` reads the live ruleset rather than a state file and cannot disagree with it
+- Boot fails closed: a deny-all ruleset is installed before the real one is read
+- Logs via NFLOG to `/var/log/ulog/firewall.log`, one rate-limited prefix per drop reason; multicast/broadcast is dropped silently so LAN chatter doesn't fill it
+
+`./fw-test.sh` verifies the whole model — structural checks against the live ruleset plus behavioural probes through real containers and namespaces standing in for VMs. `./fw-deploy.sh` installs with validate-and-rollback; `./fw-restore.sh` is the way back.
 
 ### Docker Networking
 
-Containers needing internet access must use default bridge + explicit DNS:
+Every container falls into one of three categories, and the category **is** the network it joins. Nothing else declares it.
+
+| Category | Network | Internet | Host reaches it | Claude reaches it | Example |
+|---|---|---|---|---|---|
+| Internet-capable | `docker0` (default bridge) | yes, via `net don/doff` | no — `docker exec` only | no | `claude-code` |
+| Shared | `devnet` | **never** | yes | yes | `wordpress_site` |
+| Host-only | `hostnet` | **never** | yes | **no** | `opengrok` |
+
+**Internet-capable** uses the default bridge plus an explicit resolver:
 
 ```yaml
 network_mode: bridge
@@ -106,7 +133,33 @@ dns:
   - ${DNS_SERVER}
 ```
 
-This routes traffic through the firewall's FORWARD chain, so `net don/doff` controls container internet access. User-defined bridge networks bypass the firewall.
+Default bridge + explicit DNS routes through the forward chain, which is what lets `net don/doff` gate this class end to end. Reached by `docker exec` only — publishing a port on it has no effect from the host, since `docker0` is deliberately absent from the host→container rule.
+
+**Shared and host-only** are browsed at `http://localhost:PORT` and differ in exactly one thing: the Claude container attaches to `devnet` and is deliberately absent from `hostnet`. Put a stack on `devnet` when you want Claude working on it; put it on `hostnet` when it is for your eyes alone.
+
+```yaml
+    networks:
+      - devnet        # or: hostnet
+
+networks:
+  devnet:
+    external: true
+```
+
+**"No internet" is enforced, not conventional** — `devnet`/`hostnet` have no egress rule at all, so `net don` has nothing to hand them. Consequence: `apt`, `composer` and `wp plugin install` don't work inside them; update from the host.
+
+**The split between the two is enforced too** — separate networks route rather than bridge between them, so cross-talk is dropped as RFC1918. Same-network traffic is untouched, so WordPress still finds its DB and Claude still finds WordPress.
+
+**A container needing neither the internet nor a host-facing port declares nothing at all** — Compose's own `<project>_default` bridge gets no rule, so no egress and no host access, though siblings can still talk. `network_mode: none` if it needs no network at all. (A Compose property — bare `docker run` still lands on `docker0`.)
+
+Both shared networks are external to every compose project and created once with pinned bridge names, because `firewall.nft` matches them by name:
+
+```bash
+docker network create --opt com.docker.network.bridge.name=br-devnet  devnet
+docker network create --opt com.docker.network.bridge.name=br-hostnet hostnet
+```
+
+The host reaches those two on the ports in the `docker_ports` set — **container-side ports, not published ones**. A stack published as `127.0.0.1:8888:80` needs **80** in the set; Docker rewrites the destination in nat output before the filter chain runs, so adding `8888` does nothing at all. Only `8080` is there by default — add whatever else a new stack needs.
 
 ---
 
@@ -125,6 +178,9 @@ Built from source in `/opt/gdb`:
 .
 ├── install_env.sh               # Main installer (à-la-carte component registry)
 ├── network.conf.example         # Network config template
+├── fw-deploy.sh                 # Install the ruleset to /etc (validate, load, rollback on failure)
+├── fw-restore.sh                # Roll back to the pre-deploy backup
+├── fw-test.sh                   # Firewall verification harness (structural + behavioural)
 ├── dotfiles/
 │   ├── .zshrc                   # Zsh (oh-my-zsh, aliases, fzf; degrades without tools)
 │   ├── .zshenv                  # Env vars (PATH, MAKEFLAGS, EDITOR, Wayland)
@@ -134,10 +190,12 @@ Built from source in `/opt/gdb`:
 │   ├── .gef.rc                  # GEF configuration
 │   ├── .clang-format            # C/C++ formatter (8-space indent, 120 cols)
 │   ├── .gitconfig               # Git (delta pager, histogram diffs)
-│   ├── firewall.sh              # iptables firewall (installed to /etc/)
+│   ├── firewall.sh              # nftables loader (installed to /etc/)
+│   ├── firewall.nft             # the ruleset itself (installed to /etc/)
 │   ├── network-static.sh        # Static IP script (installed to /etc/)
 │   ├── firewall.service         # Systemd service for firewall
 │   ├── network-static.service   # Systemd service for static IP
+│   ├── vpn-sync.rules           # udev: reconcile the egress path when a tunnel appears/goes
 │   ├── ulogd.conf               # Firewall logging config
 │   ├── libvirt/                 # VM network definitions (vmmail/vmweb/vmdev, open bridges)
 │   └── .config/
@@ -155,6 +213,7 @@ Built from source in `/opt/gdb`:
 │   ├── lock.sh                  # gtklock lock screen (blurred wallpaper)
 │   ├── idle.sh                  # swayidle: lock then blank the display
 │   ├── wifi-menu.sh             # fuzzel wifi picker (nmcli connect)
+│   ├── vpn-menu.sh              # fuzzel VPN relay picker (the one provider-specific file)
 │   ├── sphinx-serve.sh          # Live Sphinx docs preview (per-project venv)
 │   ├── tmux_bar.sh              # tmux status segments (full on TTY/SSH, minimal under waybar)
 │   ├── waybar_fw_status.sh      # Firewall status for waybar
@@ -165,8 +224,8 @@ Built from source in `/opt/gdb`:
 │   ├── sz                       # Print file size
 │   └── opensocat                # Quick TCP listener on :9090
 ├── dockers/
-│   ├── claude/                  # Claude Code container (isolated via firewall)
-│   └── opengrok/                # Code search on localhost:8080
+│   ├── claude/                  # Claude Code container — internet-capable class, on docker0
+│   └── opengrok/                # Code search on localhost:8080 — host-only class, on hostnet
 └── patches/
     └── gdb.patch                # GDB hex escape sequences (pinned to GDB_TAG)
 ```
@@ -177,6 +236,7 @@ Built from source in `/opt/gdb`:
 
 - **SSH keys**: Not included — generate or transfer manually
 - **network.conf**: Gitignored — never commit it
+- **vpn.conf**: Lives at `/etc/vpn.conf`, untracked — provider values only; no firewall logic names a provider
 - **Snap removal**: Optional during installation (`removesnap`, Ubuntu only)
 - **Neovim theme**: Saved to `~/.vim_theme`, change anytime with `echo "gruvbox" > ~/.vim_theme`
 - **Available themes**: molokai-dark, catppuccin, kanagawa, onedark, vscode, dracula, tokyodark, gruvbox
