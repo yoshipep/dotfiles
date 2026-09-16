@@ -5,7 +5,8 @@
 # locking with the previous locker. The pkill guard avoids stacking duplicates.
 pkill -x swayidle
 exec swayidle -w \
-	timeout 300 "$HOME/scripts/lock.sh" \
+	timeout 300 "$HOME/scripts/lock.sh -d" \
 	timeout 420 'swaymsg "output * power off"' \
 	resume 'swaymsg "output * power on"' \
+	timeout 900 'systemctl suspend' \
 	before-sleep "$HOME/scripts/lock.sh -d"
