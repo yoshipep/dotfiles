@@ -3,22 +3,30 @@
 " ============================================================================
 
 " --- File Operations ---
-nnoremap <F5> :e <CR>                  " Refresh current file
-nnoremap <C-S> :w <CR>                 " Write current file
-nnoremap <C-X> :q <CR>                 " Quit VIM
+" Refresh current file
+nnoremap <F5> :e <CR>
+" Write current file
+nnoremap <C-S> :w <CR>
+" Quit VIM
+nnoremap <C-X> :q <CR>
 nnoremap <C-n> :enew<CR>
-nnoremap <M-w> :bwipeout <CR>          " Close current buffer
-nnoremap <M-W> :bwipeout!<CR>          " Close current buffer, discard changes
+" Close current buffer; <M-W> discards changes
+nnoremap <M-w> :bwipeout <CR>
+nnoremap <M-W> :bwipeout!<CR>
 
 " --- Configuration ---
-nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR> " Edit init.vim and cd to its directory
-nnoremap <leader>r :source $MYVIMRC<CR>  " Reload init.vim configuration
-vnoremap <leader>cs <Plug>(coc-convert-snippet)  " Create snippet from selected text
+" Edit init.vim and cd to its directory
+nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR>
+" Reload init.vim configuration
+nnoremap <leader>r :source $MYVIMRC<CR>
+" Create snippet from selected text
+vnoremap <leader>cs <Plug>(coc-convert-snippet)
 
 " --- Tab Navigation ---
-nnoremap <M-J> :tabNext <CR>           " Move to next tab
-nnoremap <M-K> :tabprevious <CR>       " Move to previous tab
-nnoremap <M-Q> :tabclose <CR>          " Close current tab
+" Next / previous / close tab
+nnoremap <M-J> :tabNext <CR>
+nnoremap <M-K> :tabprevious <CR>
+nnoremap <M-Q> :tabclose <CR>
 
 " --- Buffer Navigation ---
 nnoremap <silent> <C-J> :bprevious <CR>
@@ -41,23 +49,31 @@ nnoremap <silent> <leader><Left>  :wincmd h<CR>
 nnoremap <silent> <leader><Right> :wincmd l<CR>
 
 " --- Word Manipulation ---
-inoremap <M-d> <esc>"_ciw              " Insert mode: delete current word
-nnoremap <M-d> "_diw                   " Normal mode: delete current word
-inoremap <M-BS> <space><esc>"_cb<Del>  " Forward kill word (insert mode)
-inoremap <M-Del> <space><esc>l"_cw<BS> " Backward kill word (insert mode)
-nnoremap <M-BS> "_db                   " Forward kill word (normal mode)
-nnoremap <M-Del> "_de                  " Backward kill word (normal mode)
-nnoremap _ diw                         " Remove word after search
-nnoremap Q d0                          " Remove backwards to start of line
+" Delete current word (insert / normal mode)
+inoremap <M-d> <esc>"_ciw
+nnoremap <M-d> "_diw
+" Backward kill word -- deletes to the start of the word (insert / normal mode)
+inoremap <M-BS> <space><esc>"_cb<Del>
+nnoremap <M-BS> "_db
+" Forward kill word -- deletes to the end of the word (insert / normal mode)
+inoremap <M-Del> <space><esc>l"_cw<BS>
+nnoremap <M-Del> "_de
+" Remove word after search
+nnoremap _ diw
+" Remove backwards to start of line
+nnoremap Q d0
 
 " --- Search ---
-nnoremap <C-F> *                       " Search next instance of current word
-nnoremap <C-D> #                       " Search previous instance of current word
+" Search next / previous instance of current word
+nnoremap <C-F> *
+nnoremap <C-D> #
 
 " --- Clipboard-friendly Delete/Paste ---
-nnoremap <leader>d "_d                 " Delete without yanking
-vnoremap <leader>d "_d                 " Delete without yanking (visual)
-vnoremap <leader>p "_dP                " Paste without yanking
+" Delete without yanking (normal / visual)
+nnoremap <leader>d "_d
+vnoremap <leader>d "_d
+" Paste without yanking
+vnoremap <leader>p "_dP
 
 " --- Neo-tree ---
 nnoremap <silent> <C-A> :Neotree toggle<CR>
@@ -68,7 +84,7 @@ nnoremap <space>/ :Commentary<CR>
 vnoremap <space>/ :Commentary<CR>
 
 " --- Documentation Generator (Doge) ---
-nmap <silent> <Leader>d <Plug>(doge-generate)
+nmap <silent> <leader>dg <Plug>(doge-generate)
 
 " --- LaTeX ---
 nnoremap <F2> :set spelllang=en_us<CR>:call coc#config('ltex.language', 'en-US')<CR>
@@ -91,3 +107,11 @@ nnoremap <silent> <leader>hp :Gitsigns preview_hunk<CR>
 nnoremap <silent> <leader>rh :Gitsigns reset_hunk<CR>
 nnoremap <silent> ]c :Gitsigns next_hunk<CR>
 nnoremap <silent> [c :Gitsigns prev_hunk<CR>
+
+" --- todo-comments.nvim ---
+nnoremap <silent> ]t <cmd>lua require('todo-comments').jump_next()<CR>
+nnoremap <silent> [t <cmd>lua require('todo-comments').jump_prev()<CR>
+nnoremap <silent> <leader>tt <cmd>TodoTelescope<CR>
+nnoremap <silent> <leader>tf <cmd>TodoTelescope cwd=%:p:h<CR>
+nnoremap <silent> <leader>tq <cmd>TodoQuickFix<CR>
+nnoremap <silent> <leader>tl <cmd>TodoLocList<CR>

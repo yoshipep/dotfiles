@@ -65,6 +65,7 @@ Plug 'tpope/vim-commentary'
 Plug 'sbdchd/neoformat'
 Plug 'kkoomen/vim-doge', { 'do': { -> doge#install() } }
 Plug 'stsewd/isort.nvim', { 'do': ':UpdateRemotePlugins' }
+Plug 'folke/todo-comments.nvim'
 
 " Navigation & Search
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
