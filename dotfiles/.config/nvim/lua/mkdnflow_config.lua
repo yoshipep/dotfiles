@@ -15,5 +15,9 @@ require('mkdnflow').setup({
     MkdnFoldSection = false,             -- keep <leader>f (Telescope find_files)
     MkdnUnfoldSection = false,           -- keep <leader>F
     MkdnCreateLinkFromClipboard = false, -- keep visual <leader>p (paste without yank)
+    -- link history / file moves onto <leader>m*, next to <leader>mp (preview)
+    MkdnGoBack = { 'n', '<leader>mb' },     -- keep <BS>
+    MkdnGoForward = { 'n', '<leader>mf' },  -- keep <Del>
+    MkdnMoveSource = { 'n', '<leader>mm' }, -- keep <F2> (spelllang en_US)
   },
 })
