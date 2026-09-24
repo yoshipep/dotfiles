@@ -30,6 +30,13 @@ autocmd FileType tex set fo-=t
 function! s:MarkdownSetup() abort
     if get(b:, 'markdown_setup_done', 0) | return | endif
     setlocal spell
+    " markview skips its refresh when the old and new mode both have preview
+    " enabled (i->n on <Esc>, n->c->n on :w), so the cursor line that hybrid
+    " mode cleared stays raw until the next CursorMoved. Force a render there.
+    augroup MarkdownMarkviewRefresh
+        autocmd! * <buffer>
+        autocmd InsertLeave,BufWritePost <buffer> silent! Markview render
+    augroup END
     let b:markdown_setup_done = 1
 endfunction
 augroup MarkdownSetup
