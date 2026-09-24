@@ -12,6 +12,8 @@ height=120
 default-timeout=5000
 ignore-timeout=1
 anchor=top-right
+# overlay, not the default top: sway draws fullscreen windows above the top layer
+layer=overlay
 max-visible=5
 format=<b>%s</b>\n%b
 
