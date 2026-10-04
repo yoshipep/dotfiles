@@ -1,7 +1,10 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
+
+# Madrid timezone (tzdata is absent from the base image)
+ENV TZ=Europe/Madrid
 
 # Install required packages
 RUN apt-get update && apt-get install -y \
@@ -15,6 +18,9 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     pipx \
+    tzdata \
+    vim \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Accept build argument for user ID
@@ -22,7 +28,8 @@ ARG USER_ID
 ARG USER_NAME=claude
 
 # Create user with specified UID and grant passwordless sudo
-RUN useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME} \
+RUN userdel -r ubuntu 2>/dev/null || true \
+    && useradd -m -u ${USER_ID} -s /bin/bash ${USER_NAME} \
     && echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USER_NAME} \
     && chmod 0440 /etc/sudoers.d/${USER_NAME}
 

@@ -20,6 +20,7 @@ services:
       - ./global-CLAUDE.md:/home/claude/.claude/CLAUDE.md:ro
     environment:
       - CLAUDE_CONFIG_DIR=/home/claude/.claude
+      - TZ=Europe/Madrid
     stdin_open: true
     tty: true
     restart: unless-stopped
