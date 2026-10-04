@@ -32,7 +32,7 @@
 ## What NOT to do
 
 - Don't make architectural decisions unilaterally
-- Don't co-author yourself in commit messages
+- Don't co-author yourself in commit messages, and don't add `Claude-Session` or similar trailers
 
 ## Technical Discussion Guidelines
 
