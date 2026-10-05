@@ -23,6 +23,12 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Node.js from the official tarball (Ubuntu 24.04 ships Node 18, Playwright needs 20+)
+ARG NODE_VERSION=24.11.0
+RUN arch=$(dpkg --print-architecture | sed 's/amd64/x64/') \
+    && curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${arch}.tar.gz \
+    | tar -xz -C /usr/local --strip-components=1 --exclude='*.md' --exclude=LICENSE
+
 # Accept build argument for user ID
 ARG USER_ID
 ARG USER_NAME=claude
@@ -50,6 +56,14 @@ RUN mkdir -p /home/${USER_NAME}/repos \
 
 # Install pyright LSP
 RUN pipx install pyright
+
+# Install Playwright + its MCP server + Chromium (npm globals go to ~/.local, browser in ~/.cache/ms-playwright)
+RUN npm config set prefix /home/${USER_NAME}/.local \
+    && npm install -g playwright @playwright/mcp \
+    && sudo apt-get update \
+    && sudo /home/${USER_NAME}/.local/bin/playwright install-deps chromium \
+    && sudo rm -rf /var/lib/apt/lists/* \
+    && /home/${USER_NAME}/.local/bin/playwright install chromium
 
 # Install Rust + rust-analyzer LSP
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
