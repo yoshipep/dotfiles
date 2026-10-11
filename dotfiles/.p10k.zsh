@@ -351,13 +351,16 @@
     fi
 
     local res
+    # Symbols; plain ASCII on the Linux console (see P10K_ASCII below).
+    local ell=… up=⇡ dn=⇣ pup=⇢ pdn=⇠ dash=─
+    (( P10K_ASCII )) && ell=.. up='^' dn=v pup='>' pdn='<' dash=-
 
     if [[ -n $VCS_STATUS_LOCAL_BRANCH ]]; then
       local branch=${(V)VCS_STATUS_LOCAL_BRANCH}
       # If local branch name is at most 32 characters long, show it in full.
       # Otherwise show the first 12 … the last 12.
       # Tip: To always show local branch name in full without truncation, delete the next line.
-      (( $#branch > 32 )) && branch[13,-13]="…"  # <-- this line
+      (( $#branch > 32 )) && branch[13,-13]="${ell}"  # <-- this line
       res+="${clean}${(g::)POWERLEVEL9K_VCS_BRANCH_ICON}${branch//\%/%%}"
     fi
 
@@ -370,7 +373,7 @@
       # If tag name is at most 32 characters long, show it in full.
       # Otherwise show the first 12 … the last 12.
       # Tip: To always show tag name in full without truncation, delete the next line.
-      (( $#tag > 32 )) && tag[13,-13]="…"  # <-- this line
+      (( $#tag > 32 )) && tag[13,-13]="${ell}"  # <-- this line
       res+="${meta}#${clean}${tag//\%/%%}"
     fi
 
@@ -391,20 +394,20 @@
 
     if (( VCS_STATUS_COMMITS_AHEAD || VCS_STATUS_COMMITS_BEHIND )); then
       # ⇣42 if behind the remote.
-      (( VCS_STATUS_COMMITS_BEHIND )) && res+=" ${clean}⇣${VCS_STATUS_COMMITS_BEHIND}"
+      (( VCS_STATUS_COMMITS_BEHIND )) && res+=" ${clean}${dn}${VCS_STATUS_COMMITS_BEHIND}"
       # ⇡42 if ahead of the remote; no leading space if also behind the remote: ⇣42⇡42.
       (( VCS_STATUS_COMMITS_AHEAD && !VCS_STATUS_COMMITS_BEHIND )) && res+=" "
-      (( VCS_STATUS_COMMITS_AHEAD  )) && res+="${clean}⇡${VCS_STATUS_COMMITS_AHEAD}"
+      (( VCS_STATUS_COMMITS_AHEAD  )) && res+="${clean}${up}${VCS_STATUS_COMMITS_AHEAD}"
     elif [[ -n $VCS_STATUS_REMOTE_BRANCH ]]; then
       # Tip: Uncomment the next line to display '=' if up to date with the remote.
       # res+=" ${clean}="
     fi
 
     # ⇠42 if behind the push remote.
-    (( VCS_STATUS_PUSH_COMMITS_BEHIND )) && res+=" ${clean}⇠${VCS_STATUS_PUSH_COMMITS_BEHIND}"
+    (( VCS_STATUS_PUSH_COMMITS_BEHIND )) && res+=" ${clean}${pdn}${VCS_STATUS_PUSH_COMMITS_BEHIND}"
     (( VCS_STATUS_PUSH_COMMITS_AHEAD && !VCS_STATUS_PUSH_COMMITS_BEHIND )) && res+=" "
     # ⇢42 if ahead of the push remote; no leading space if also behind: ⇠42⇢42.
-    (( VCS_STATUS_PUSH_COMMITS_AHEAD  )) && res+="${clean}⇢${VCS_STATUS_PUSH_COMMITS_AHEAD}"
+    (( VCS_STATUS_PUSH_COMMITS_AHEAD  )) && res+="${clean}${pup}${VCS_STATUS_PUSH_COMMITS_AHEAD}"
     # *42 if have stashes.
     (( VCS_STATUS_STASHES        )) && res+=" ${clean}*${VCS_STATUS_STASHES}"
     # 'merge' if the repo is in an unusual state.
@@ -424,7 +427,7 @@
     # than the number of files in the Git index, or due to bash.showDirtyState being set to false
     # in the repository config. The number of staged and untracked files may also be unknown
     # in this case.
-    (( VCS_STATUS_HAS_UNSTAGED == -1 )) && res+=" ${modified}─"
+    (( VCS_STATUS_HAS_UNSTAGED == -1 )) && res+=" ${modified}${dash}"
 
     typeset -g my_git_format=$res
   }
@@ -1627,7 +1630,7 @@
   #
   # Type `p10k help segment` for documentation and a more sophisticated example.
   function prompt_example() {
-    p10k segment -f 208 -i '⭐' -t 'hello, %n'
+    p10k segment -f yellow -i '⭐' -t 'hello, %n'
   }
 
   # User-defined prompt segments may optionally provide an instant_prompt_* function. Its job
@@ -1681,6 +1684,63 @@
   # can slow down prompt by 1-2 milliseconds, so it's better to keep it turned off unless you
   # really need it.
   typeset -g POWERLEVEL9K_DISABLE_HOT_RELOAD=true
+
+  # Linux console (IS_LINUX_CONSOLE is set in .zshrc, which also sees through tmux):
+  # no icon font, no Powerline glyphs and almost no Unicode, so draw the same prompt
+  # in plain ASCII, flat. P10K_ASCII is read by my_git_formatter at prompt time.
+  typeset -g P10K_ASCII=0
+  if [[ $TERM == linux || -n $IS_LINUX_CONSOLE ]]; then
+    P10K_ASCII=1
+    typeset -g POWERLEVEL9K_INSTANT_PROMPT=off
+    typeset -g POWERLEVEL9K_MODE=ascii
+    typeset -g POWERLEVEL9K_LEFT_PROMPT_ELEMENTS=(${POWERLEVEL9K_LEFT_PROMPT_ELEMENTS:#os_icon})
+    typeset -g POWERLEVEL9K_{LEFT,RIGHT}_SUBSEGMENT_SEPARATOR='%242F|'
+    typeset -g POWERLEVEL9K_{LEFT,RIGHT}_SEGMENT_SEPARATOR=
+    typeset -g POWERLEVEL9K_LEFT_PROMPT_LAST_SEGMENT_END_SYMBOL=
+    typeset -g POWERLEVEL9K_RIGHT_PROMPT_FIRST_SEGMENT_START_SYMBOL=
+    typeset -g POWERLEVEL9K_VCS_BRANCH_ICON=
+    typeset -g POWERLEVEL9K_STATUS_OK_VISUAL_IDENTIFIER_EXPANSION='ok'
+    typeset -g POWERLEVEL9K_STATUS_OK_PIPE_VISUAL_IDENTIFIER_EXPANSION='ok'
+    typeset -g POWERLEVEL9K_STATUS_ERROR{,_SIGNAL,_PIPE}_VISUAL_IDENTIFIER_EXPANSION=
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_{OK,ERROR}_VIINS_CONTENT_EXPANSION='>'
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_{OK,ERROR}_VICMD_CONTENT_EXPANSION='<'
+    typeset -g POWERLEVEL9K_PROMPT_CHAR_{OK,ERROR}_VIOWR_CONTENT_EXPANSION='>'
+    typeset -g POWERLEVEL9K_MULTILINE_{FIRST,NEWLINE,LAST}_PROMPT_{PREFIX,SUFFIX}=
+
+    # The console has 8 colours: the 256-colour numbers used above come out white
+    # there (tmux maps them down, so inside tmux they work), so use names here.
+    typeset -g POWERLEVEL9K_STATUS_OK_FOREGROUND=green
+    typeset -g POWERLEVEL9K_STATUS_OK_PIPE_FOREGROUND=green
+    typeset -g POWERLEVEL9K_STATUS_ERROR{,_SIGNAL,_PIPE}_FOREGROUND=red
+
+    # No waybar on the console: show what its modules show (vpn, host and docker
+    # internet) from the files they read. Skipped inside tmux, whose bar has them
+    # (scripts/tmux_bar.sh). Colours as in waybar: internet open = red, closed =
+    # green; vpn up = green, switch on without a tunnel = yellow (no orange).
+    function _fw_flag() {  # label file
+      local v; [[ -r $2 ]] && v=$(<$2); v=${v//[[:space:]]/}
+      case $v in
+        1) p10k segment -f red -t "$1:on" ;;
+        0) p10k segment -f green -t "$1:off" ;;
+        *) p10k segment -f yellow -t "$1:?" ;;
+      esac
+    }
+    function prompt_fw_host()   { _fw_flag net /etc/.fw_host_status }
+    function prompt_fw_docker() { _fw_flag dock /etc/.fw_docker_status }
+    function prompt_fw_vpn() {
+      [[ -r /etc/vpn.conf ]] || return  # no vpn on this machine
+      local l vpn=0 tun=0
+      if [[ -r /run/firewall.state ]]; then
+        for l in ${(f)"$(</run/firewall.state)"}; do
+          case $l in vpn=*) vpn=${l#vpn=} ;; tunnelled=*) tun=${l#tunnelled=} ;; esac
+        done
+      fi
+      if [[ $tun == 1 ]]; then p10k segment -f green -t vpn:on
+      elif [[ $vpn == 1 ]]; then p10k segment -f yellow -t vpn:wait
+      else p10k segment -f red -t vpn:off; fi
+    }
+    [[ -n $TMUX ]] || typeset -g POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS=(fw_vpn fw_host fw_docker $POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS)
+  fi
 
   # If p10k is already loaded, reload configuration.
   # This works even with POWERLEVEL9K_DISABLE_HOT_RELOAD=true.
