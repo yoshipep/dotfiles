@@ -182,10 +182,10 @@ Built from source in `/opt/gdb`:
 ├── fw-restore.sh                # Roll back to the pre-deploy backup
 ├── fw-test.sh                   # Firewall verification harness (structural + behavioural)
 ├── dotfiles/
-│   ├── .zshrc                   # Zsh (oh-my-zsh, aliases, fzf; degrades without tools)
-│   ├── .zshenv                  # Env vars (PATH, MAKEFLAGS, EDITOR, Wayland)
-│   ├── .p10k.zsh                # Powerlevel10k prompt
-│   ├── .tmux.conf               # Tmux (status bar collapses when waybar is present)
+│   ├── .zshrc                   # Zsh (oh-my-zsh, aliases, fzf; lazy virtualenvwrapper; ASCII on the Linux console; degrades without tools)
+│   ├── .zshenv                  # Env vars (PATH deduplicated, MAKEFLAGS from the CPU affinity mask, EDITOR, Wayland)
+│   ├── .p10k.zsh                # Powerlevel10k prompt (flat ASCII + vpn/net/dock on the Linux console; also inside tmux)
+│   ├── .tmux.conf               # Tmux (status bar collapses for desktop clients when waybar is present)
 │   ├── .gdbinit                 # GDB settings + custom commands
 │   ├── .gef.rc                  # GEF configuration
 │   ├── .clang-format            # C/C++ formatter (8-space indent, 120 cols)
@@ -215,7 +215,7 @@ Built from source in `/opt/gdb`:
 │   ├── wifi-menu.sh             # fuzzel wifi picker (nmcli connect)
 │   ├── vpn-menu.sh              # fuzzel VPN relay picker (the one provider-specific file)
 │   ├── sphinx-serve.sh          # Live Sphinx docs preview (per-project venv)
-│   ├── tmux_bar.sh              # tmux status segments (full on TTY/SSH, minimal under waybar)
+│   ├── tmux_bar.sh              # tmux status segments (full on TTY/SSH, minimal under waybar; vpn/net/dock as text on the console)
 │   ├── waybar_fw_status.sh      # Firewall status for waybar
 │   ├── waybar_docker_status.sh  # Docker firewall status for waybar
 │   ├── waybar_ip.sh             # LAN IP for waybar (default-route source)
