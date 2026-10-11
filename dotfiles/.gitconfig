@@ -8,7 +8,7 @@
 	pager = delta
 	editor = vim
 [interactive]
-	diffFilter = delta --color only
+	diffFilter = delta --color-only
 [delta]
 	navigate = true
 	side-by-side = true
