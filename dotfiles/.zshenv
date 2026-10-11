@@ -9,7 +9,20 @@ if [ "$XDG_SESSION_TYPE" = "wayland" ]; then
     export QT_QPA_PLATFORM=wayland
 fi
 export PATH="$HOME/.npm-global/bin:$HOME/.local/bin:$HOME/scripts:/usr/local/go/bin:$HOME/go/bin:$PATH"
-export MAKEFLAGS="-j$(nproc)"
+# Every nested zsh (tmux, scripts, sudo -E) re-runs this and would prepend the same
+# entries again; -U keeps the first occurrence of each.
+typeset -U path
+# CPU count without forking nproc: same source (this process's affinity mask),
+# parsed from a list like "0-3,8". .zshenv runs for every zsh, scripts included.
+_n=0
+if [[ -r /proc/self/status ]]; then
+	for _r in ${(s:,:)${${(M)${(f)"$(</proc/self/status)"}:#Cpus_allowed_list:*}##*[[:space:]]}}; do
+		_n=$(( _n + ${_r#*-} - ${_r%-*} + 1 ))
+	done
+fi
+(( _n )) || _n=$(nproc)
+export MAKEFLAGS="-j$_n"
+unset _n _r
 export WORKON_HOME="$HOME/.virtualenvs"
 export CMAKE_EXPORT_COMPILE_COMMANDS=ON
 # VMs live in the privileged libvirt instance; make virsh/virt-manager target it
