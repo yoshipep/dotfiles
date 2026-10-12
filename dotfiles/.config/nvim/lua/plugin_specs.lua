@@ -36,15 +36,12 @@ return {
     -- Code tools
     'Raimondi/delimitMate',
     'ntpeters/vim-better-whitespace',
-    'tpope/vim-commentary',
     'sbdchd/neoformat',
     { 'kkoomen/vim-doge', build = ':call doge#install()' },
     { 'stsewd/isort.nvim', build = ':UpdateRemotePlugins' },
     'folke/todo-comments.nvim',
 
     -- Navigation & search
-    { 'junegunn/fzf', build = './install --bin' },
-    'junegunn/fzf.vim',
     'nvim-lua/plenary.nvim',
     { 'nvim-telescope/telescope.nvim', branch = 'master' },
     { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },

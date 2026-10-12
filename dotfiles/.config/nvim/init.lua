@@ -3,6 +3,10 @@
 
 vim.g.mapleader = ' ' -- before lazy loads any plugin
 
+-- Providers nothing here uses (silences their :checkhealth warnings)
+vim.g.loaded_perl_provider = 0
+vim.g.loaded_ruby_provider = 0
+
 local lazypath = vim.fn.stdpath('data') .. '/lazy/lazy.nvim'
 if not vim.uv.fs_stat(lazypath) then
     local out = vim.fn.system({

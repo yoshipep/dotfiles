@@ -77,9 +77,9 @@ vnoremap <leader>p "_dP
 nnoremap <silent> <C-A> :Neotree toggle<CR>
 nnoremap <silent> <C-G> :Neotree reveal<CR>
 
-" --- Commentary ---
-nnoremap <space>/ :Commentary<CR>
-vnoremap <space>/ :Commentary<CR>
+" --- Comment toggle (built-in gc / gcc) ---
+nmap <space>/ gcc
+xmap <space>/ gc
 
 " --- Documentation Generator (Doge) ---
 nmap <silent> <leader>dg <Plug>(doge-generate)
