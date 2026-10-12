@@ -46,6 +46,9 @@ Plug 'sainnhe/everforest'
 " LSP & Completion
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'antoinemadec/coc-fzf'
+Plug 'neovim/nvim-lspconfig'
+Plug 'saghen/blink.cmp', { 'tag': 'v1.10.2' }
+Plug 'L3MON4D3/LuaSnip', { 'tag': 'v2.5.0' }
 
 " Syntax & Language Support
 Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'main', 'do': ':TSUpdate' }
@@ -109,7 +112,7 @@ func! s:my_colors_setup() abort
   " Standard Vim popup menu selection
   highlight PmenuSel ctermbg=208 ctermfg=235 cterm=bold guibg=#ff8700 guifg=#282828 gui=bold
   " Darken inactive preprocessor regions (#ifdef blocks that won't compile)
-  highlight CocInactiveRegion ctermfg=243 guifg=#666666
+  highlight InactiveRegion ctermfg=243 guifg=#666666
 endfunc
 
 augroup colorscheme_coc_setup | au!
@@ -126,7 +129,8 @@ source ~/.config/nvim/functions.vim
 source ~/.config/nvim/autocommands.vim
 source ~/.config/nvim/keybindings.vim
 
-lua require('inactive_regions')
+lua require('lsp_config')
+lua require('completion')
 lua require('markview_config')
 lua require('mkdnflow_config')
 

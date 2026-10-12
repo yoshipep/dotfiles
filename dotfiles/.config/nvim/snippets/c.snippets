@@ -1,0 +1,62 @@
+snippet description Add description to the program
+	/*
+	 * $0
+	 * Author: $1 <$2>
+	 * Date: $3
+	 */
+
+snippet comment-label put a label section comment
+	// ---------------------- //
+	//  --- $0 ---  //
+	// ---------------------- //
+
+snippet comment-desc put a description section comment
+	/**
+	 * $0
+	 *
+	 *
+	 *
+	 *
+	 *
+	 */
+
+snippet comment-separator put a section separator comment
+	// ------------------------------------------------------------------------- //
+
+snippet hello-world-main Simple hello-world program
+	#include <stdio.h>
+
+	int main(int argc, char *argv[])
+	{
+	        printf("Hello\n");
+	        return 0;
+	}
+
+snippet mmap-anon mmap() anon RW
+	mmap(NULL, $0, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+snippet include
+	#include <$0>
+
+snippet include_l
+	#include "$0"
+
+snippet x86_breakpoint Debugger breakpoint interrupt (int3) for x86_64
+	__asm__ volatile(".byte 0xcc");
+
+snippet asm Inline asm
+	__asm__(".intel_syntax noprefix\n\t"
+			"$0"
+			 ".att_syntax prefix"
+			 :
+			 :
+			 :);
+
+snippet a64_breakpoint
+	__asm__ volatile("brk #0xff");
+
+snippet attribute
+	__attribute__(($0))
+
+snippet fptr
+	int (*$0)(int, int);

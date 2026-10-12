@@ -506,7 +506,6 @@ installConfigDeploy() {
 	# Neovim config + snippet symlinks
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-	ln -sf "$HOME/.config/nvim/custom-snippets/c.snippets" "$HOME/.config/nvim/custom-snippets/cpp.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
 	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/S.snippets"
 

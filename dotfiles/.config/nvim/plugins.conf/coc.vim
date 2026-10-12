@@ -90,6 +90,8 @@ augroup mygroup
   autocmd!
   " Setup formatexpr specified filetype(s).
   autocmd FileType typescript,json setl formatexpr=CocAction('formatSelected')
+  " clangd runs as a native LSP client (lua/lsp_config.lua); keep coc out of these buffers
+  autocmd FileType c,cpp,objc,objcpp,cuda let b:coc_enabled = 0
   " Update signature help on jump placeholder
   autocmd User CocJumpPlaceholder call CocActionAsync('showSignatureHelp')
 augroup end

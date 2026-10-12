@@ -17,15 +17,7 @@
   "markdownlint.config": {
     "line-length": false
   },
-  "clangd.arguments": [
-    "--header-insertion=never",
-    "--compile-commands-dir=build",
-    "--background-index",
-    "--clang-tidy",
-    "--completion-style=detailed",
-    "--log=error"
-  ],
-  "clangd.fallbackFlags": ["-Wall"],
+  "clangd.enabled": false,
   "languageserver": {
     "bash": {
       "command": "bash-language-server",
