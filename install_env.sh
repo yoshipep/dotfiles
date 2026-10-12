@@ -228,7 +228,7 @@ installNode() {
 	mkdir -p "$HOME/.npm-global"
 	npm config set prefix "$HOME/.npm-global" --location=user
 	export PATH="$HOME/.npm-global/bin:$PATH"
-	npm i -g neovim yarn bash-language-server prettier dockerfile-language-server-nodejs
+	npm i -g neovim yarn bash-language-server prettier dockerfile-language-server-nodejs vscode-langservers-extracted
 }
 
 # QEMU/KVM + libvirt + virt-manager (apt). Root, full-mode.
@@ -588,7 +588,7 @@ installNvimPlugins() {
 	"$NVIM_VENV/bin/pip" install --quiet --upgrade pip pynvim isort
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-html coc-css coc-clangd coc-sh coc-markdownlint coc-prettier coc-docker" +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-clangd coc-sh coc-markdownlint coc-prettier coc-docker" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
 	/opt/neovim/bin/nvim --headless +"UpdateRemotePlugins" +qa

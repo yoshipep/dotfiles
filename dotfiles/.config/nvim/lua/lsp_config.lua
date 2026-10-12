@@ -50,6 +50,9 @@ vim.lsp.enable('clangd')
 vim.lsp.config('pyright', { settings = { pyright = { disableTaggedHints = false } } })
 vim.lsp.enable({ 'pyright', 'bashls', 'asm_lsp' })
 
+-- rust, json, docker
+vim.lsp.enable({ 'rust_analyzer', 'jsonls', 'dockerls' })
+
 vim.diagnostic.config({ severity_sort = true, float = { border = 'single' } })
 
 -- Show the diagnostic under the cursor once it rests there (coc's default). The

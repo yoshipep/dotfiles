@@ -6,6 +6,7 @@ local native_fts = {}
 for _, ft in ipairs({
     'c', 'cpp', 'objc', 'objcpp', 'cuda',
     'python', 'sh', 'bash', 'asm', 'vmasm',
+    'rust', 'json', 'jsonc', 'dockerfile',
 }) do
     native_fts[ft] = true
 end

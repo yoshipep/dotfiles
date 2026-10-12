@@ -21,6 +21,5 @@
   "pyright.enable": false,
   "coc.source.vimtex.filetypes": ["tex", "latex"],
   "coc.source.vimtex.enable": true,
-  "ltex.enabled": ["latex", "bibtex"],
-  "rust-analyzer.server.path": "rust-analyzer"
+  "ltex.enabled": ["latex", "bibtex"]
 }
