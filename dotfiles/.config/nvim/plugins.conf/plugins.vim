@@ -38,10 +38,6 @@ let g:doge_doc_standard_sh = 'google'
 let g:python3_host_prog = expand('~/.virtualenvs/neovim/bin/python3')
 let g:isort_command = 'isort'
 
-" --- Vimtex ---
-let g:vimtex_view_general_viewer = 'evince'
-let g:vimtex_compiler_method = 'latexmk'
-
 " --- markdown-preview.nvim ---
 " One browser tab that follows the active markdown buffer and holds the last
 " markdown (stays open) when the active buffer is not markdown.

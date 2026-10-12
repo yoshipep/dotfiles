@@ -423,10 +423,8 @@ installGefGep() {
 }
 
 installPlugins() {
-	echo "[!] Installing: vim-plug, powerlevel10k, zsh-autosuggestions"
+	echo "[!] Installing: powerlevel10k, zsh-autosuggestions"
 	read -n 1 -r -s -p $'Press enter to continue...\n'
-	sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs \
-		https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
 	git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 	git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 }
@@ -606,9 +604,10 @@ installNvimPlugins() {
 	mkdir -p "$(dirname "$NVIM_VENV")"
 	python3 -m venv "$NVIM_VENV"
 	"$NVIM_VENV/bin/pip" install --quiet --upgrade pip pynvim isort
-	/opt/neovim/bin/nvim --headless +PlugInstall +qa
-	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
-	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
+	# init.lua clones lazy.nvim on first start; restore pins every plugin to lazy-lock.json.
+	# The first run may print errors from config that needs plugins not cloned yet.
+	/opt/neovim/bin/nvim --headless +"Lazy! restore" +qa
+	/opt/neovim/bin/nvim --headless +"Lazy! restore" +qa
 	/opt/neovim/bin/nvim --headless +"UpdateRemotePlugins" +qa
 	/opt/neovim/bin/nvim --headless +"TSInstall c cpp python bash lua vim vimdoc markdown markdown_inline latex rust json yaml toml html css javascript make cmake" +qa
 	/opt/neovim/bin/nvim --headless +"TSUpdate" +qa
@@ -843,12 +842,13 @@ reg() { # name fn root(y/n) deps desc
 # Components without a check are trusted on exit status alone (the default).
 check() { COMP_CHECK["$1"]="$2"; }
 
-# nvim-plugins runs headless nvim, which exits 0 even when PlugInstall
+# nvim-plugins runs headless nvim, which exits 0 even when Lazy restore
 # or a treesitter build fails -- exactly how the missing tree-sitter CLI hid for
 # a whole run. Assert the artifacts actually landed.
 checkNvimPlugins() {
 	local ok=0
 	command -v tree-sitter >/dev/null 2>&1 || { echo "  [check] tree-sitter CLI not on PATH"; ok=1; }
+	[ -d "$HOME/.local/share/nvim/lazy/blink.cmp" ] || { echo "  [check] lazy.nvim plugins not installed"; ok=1; }
 	local nparser
 	nparser=$(ls "$HOME/.local/share/nvim/site/parser" 2>/dev/null | wc -l)
 	[ "$nparser" -ge 10 ] || { echo "  [check] only $nparser treesitter parsers built (expected >=10)"; ok=1; }
@@ -868,8 +868,8 @@ reg ltex         installLtex           n "syspkgs-core"               "ltex-ls-p
 reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
-reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
-reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/TS)"
+reg plugins      installPlugins        n "shell"                      "powerlevel10k, zsh-autosuggestions"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless lazy.nvim restore/TS)"
 check nvim-plugins checkNvimPlugins
 reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
 reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"

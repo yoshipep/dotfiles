@@ -15,10 +15,10 @@ nnoremap <M-w> :bwipeout <CR>
 nnoremap <M-W> :bwipeout!<CR>
 
 " --- Configuration ---
-" Edit init.vim and cd to its directory
-nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR>
-" Reload init.vim configuration
-nnoremap <leader>r :source $MYVIMRC<CR>
+" Edit base.vim and cd to its directory
+nnoremap <leader>s :edit ~/.config/nvim/base.vim <bar> lcd %:p:h<CR>
+" Reload base.vim configuration
+nnoremap <leader>r :source ~/.config/nvim/base.vim<CR>
 
 " --- Tab Navigation ---
 " Next / previous / close tab

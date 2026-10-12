@@ -1,3 +1,4 @@
+" Loaded by init.lua after lazy.nvim has loaded the plugins (see lua/plugin_specs.lua).
 " ============================================================================
 " LEADER KEY & BASIC SETTINGS
 " ============================================================================
@@ -24,67 +25,6 @@ set shiftwidth=4
 set expandtab
 set autoindent
 set tw=120
-
-" ============================================================================
-" PLUGIN DECLARATIONS
-" ============================================================================
-
-call plug#begin('~/.vim/plugged')
-
-" Themes
-Plug 'pR0Ps/molokai-dark'
-Plug 'catppuccin/nvim', { 'as': 'catppuccin' }
-Plug 'rebelot/kanagawa.nvim'
-Plug 'navarasu/onedark.nvim'
-Plug 'Mofiqul/vscode.nvim'
-Plug 'Dracula/vim', { 'as': 'dracula' }
-Plug 'tiagovla/tokyodark.nvim'
-Plug 'ellisonleao/gruvbox.nvim'
-Plug 'sainnhe/sonokai'
-Plug 'sainnhe/everforest'
-
-" LSP & Completion
-Plug 'neovim/nvim-lspconfig'
-Plug 'saghen/blink.cmp', { 'tag': 'v1.10.2' }
-Plug 'L3MON4D3/LuaSnip', { 'tag': 'v2.5.0' }
-
-" Syntax & Language Support
-Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'main', 'do': ':TSUpdate' }
-Plug 'lervag/vimtex'
-Plug 'drinkataco/vim-md-toc'
-Plug 'OXY2DEV/markview.nvim'
-Plug 'jakewvincent/mkdnflow.nvim'
-Plug 'iamcco/markdown-preview.nvim', { 'do': 'cd app && npx --yes yarn install' }
-
-" Code Tools
-Plug 'Raimondi/delimitMate'
-Plug 'ntpeters/vim-better-whitespace'
-Plug 'tpope/vim-commentary'
-Plug 'sbdchd/neoformat'
-Plug 'kkoomen/vim-doge', { 'do': { -> doge#install() } }
-Plug 'stsewd/isort.nvim', { 'do': ':UpdateRemotePlugins' }
-Plug 'folke/todo-comments.nvim'
-
-" Navigation & Search
-Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
-Plug 'junegunn/fzf.vim'
-Plug 'nvim-lua/plenary.nvim'
-Plug 'nvim-telescope/telescope.nvim', { 'branch': 'master' }
-Plug 'nvim-telescope/telescope-fzf-native.nvim', { 'do': 'make' }
-Plug 'MunifTanjim/nui.nvim'
-Plug 'nvim-neo-tree/neo-tree.nvim', { 'branch': 'v3.x' }
-
-" Git Integration
-Plug 'tpope/vim-fugitive'
-Plug 'tpope/vim-obsession'
-Plug 'lewis6991/gitsigns.nvim'
-
-" UI Enhancements
-Plug 'nvim-tree/nvim-web-devicons'
-Plug 'vim-airline/vim-airline'
-Plug '0xferrous/ansi.nvim'
-
-call plug#end()
 
 " ============================================================================
 " THEME & COLORSCHEME
@@ -131,5 +71,4 @@ lua require('markview_config')
 lua require('mkdnflow_config')
 
 " Plugin-specific configurations
-source ~/.config/nvim/plugins.conf/vim-airline.vim
 source ~/.config/nvim/plugins.conf/plugins.vim
