@@ -5,3 +5,5 @@ let g:airline#extensions#tabline#show_tabs = 1
 let g:airline#extensions#tabline#tab_nr_type = 1
 let g:airline#extensions#tabline#buffer_idx_mode = 1
 
+" Cache the generated highlights between sessions (startup time)
+let g:airline_highlighting_cache = 1
