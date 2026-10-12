@@ -8,11 +8,12 @@ vim.lsp.config('*', {
 -- clangd (c, cpp, ...)
 local inactive_ns = vim.api.nvim_create_namespace('clangd_inactive_regions')
 
+-- No --compile-commands-dir: clangd's own search (parent dirs and their build/) works from any
+-- cwd, while a relative path resolves against nvim's cwd, not the project root.
 vim.lsp.config('clangd', {
     cmd = {
         'clangd',
         '--header-insertion=never',
-        '--compile-commands-dir=build',
         '--background-index',
         '--clang-tidy',
         '--completion-style=detailed',
