@@ -19,8 +19,6 @@ nnoremap <M-W> :bwipeout!<CR>
 nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR>
 " Reload init.vim configuration
 nnoremap <leader>r :source $MYVIMRC<CR>
-" Create snippet from selected text
-vnoremap <leader>cs <Plug>(coc-convert-snippet)
 
 " --- Tab Navigation ---
 " Next / previous / close tab
@@ -87,8 +85,8 @@ vnoremap <space>/ :Commentary<CR>
 nmap <silent> <leader>dg <Plug>(doge-generate)
 
 " --- LaTeX ---
-nnoremap <F2> :set spelllang=en_us<CR>:call coc#config('ltex.language', 'en-US')<CR>
-nnoremap <F3> :set spelllang=es_es<CR>:call coc#config('ltex.language', 'es')<CR>
+nnoremap <F2> :set spelllang=en_us<CR>:lua require('lsp_config').set_ltex_language('en-US')<CR>
+nnoremap <F3> :set spelllang=es_es<CR>:lua require('lsp_config').set_ltex_language('es')<CR>
 nnoremap <leader>c <Plug>(vimtex-compile)
 nnoremap <leader>v :VimtexView<CR>
 

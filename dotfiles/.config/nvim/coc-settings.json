@@ -12,14 +12,6 @@
   "hover.floatConfig": {
     "border": true
   },
-  "snippets.ultisnips.directories": ["custom-snippets"],
-  "snippets.ultisnips.pythonPrompt": false,
-  "markdownlint.config": {
-    "line-length": false
-  },
   "clangd.enabled": false,
-  "pyright.enable": false,
-  "coc.source.vimtex.filetypes": ["tex", "latex"],
-  "coc.source.vimtex.enable": true,
-  "ltex.enabled": ["latex", "bibtex"]
+  "pyright.enable": false
 }

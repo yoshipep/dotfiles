@@ -194,6 +194,25 @@ installTreesitterCli() {
 	fi
 }
 
+# ltex-ls-plus (grammar/spell LSP for LaTeX) -> ~/.local/opt, linked into ~/.local/bin.
+# Pinned; the platform tarball bundles its own Java runtime. ~320 MB download.
+installLtex() {
+	echo "[!] Installing ltex-ls-plus..."
+	local VER="18.7.0" ARCH
+	case "$(uname -m)" in
+		x86_64) ARCH=x64 ;;
+		aarch64) ARCH=aarch64 ;;
+		*) echo "[!] ltex-ls-plus: unsupported arch $(uname -m)"; return 1 ;;
+	esac
+	local DIR="$HOME/.local/opt"
+	mkdir -p "$DIR" "$HOME/.local/bin"
+	curl -L -o /tmp/ltex-ls-plus.tar.gz \
+		"https://github.com/ltex-plus/ltex-ls-plus/releases/download/${VER}/ltex-ls-plus-${VER}-linux-${ARCH}.tar.gz" || return 1
+	tar -C "$DIR" -xzf /tmp/ltex-ls-plus.tar.gz || return 1
+	rm -f /tmp/ltex-ls-plus.tar.gz
+	ln -sf "$DIR/ltex-ls-plus-${VER}/bin/ltex-ls-plus" "$HOME/.local/bin/ltex-ls-plus"
+}
+
 # cargo CLI tools: asm-lsp, eza, bat, ripgrep, git-delta, stylua. User-space. Depends: rust.
 # tree-sitter is NOT here — it comes prebuilt from treesitter-cli.
 installCargoTools() {
@@ -588,7 +607,7 @@ installNvimPlugins() {
 	"$NVIM_VENV/bin/pip" install --quiet --upgrade pip pynvim isort
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
 	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-vimtex coc-rust-analyzer coc-pyright coc-ltex coc-clangd coc-sh coc-markdownlint coc-prettier coc-docker" +qa
+	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-rust-analyzer coc-pyright coc-clangd coc-sh coc-prettier coc-docker" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
 	/opt/neovim/bin/nvim --headless +"UpdateRemotePlugins" +qa
@@ -847,6 +866,7 @@ reg node         installNode           y ""                           "Node.js +
 reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format (pinned), autopep8, isort, pyright"
 reg treesitter-cli installTreesitterCli n ""                          "tree-sitter CLI (prebuilt, no Rust needed)"
 reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta, stylua"
+reg ltex         installLtex           n "syspkgs-core"               "ltex-ls-plus (LaTeX grammar/spell LSP)"
 reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
@@ -866,9 +886,9 @@ reg sway         installSway           y "syspkgs-core config font alacritty plu
 reg removesnap   removeSnap            y ""                           "Remove snap (Ubuntu)"
 
 # Canonical execution order (mirrors the original FULL pipeline).
-CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
+CANON_ORDER=(removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools ltex alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network)
 
-PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
+PRESET_PERSONAL="removesnap syspkgs-core syspkgs-full pipx-tools go rust treesitter-cli cargo-tools ltex alacritty node libvirt docker shell neovim ghidra lazydocker gdb gef-gep font plugins theme config nvim-plugins sway network"
 PRESET_DEVCORE="config syspkgs-core rust go node pipx-tools cargo-tools alacritty shell plugins neovim nvim-plugins font theme"
 
 # Capability detection (Debian/Ubuntu apt-based by design).

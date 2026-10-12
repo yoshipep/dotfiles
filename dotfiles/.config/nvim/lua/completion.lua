@@ -7,6 +7,7 @@ for _, ft in ipairs({
     'c', 'cpp', 'objc', 'objcpp', 'cuda',
     'python', 'sh', 'bash', 'asm', 'vmasm',
     'rust', 'json', 'jsonc', 'dockerfile',
+    'tex', 'plaintex', 'bib',
 }) do
     native_fts[ft] = true
 end
@@ -38,7 +39,15 @@ require('blink.cmp').setup({
     },
     signature = { enabled = true, window = { border = 'single' } },
     snippets = { preset = 'luasnip' },
-    sources = { default = { 'lsp', 'path', 'snippets', 'buffer' } },
+    sources = {
+        default = { 'lsp', 'path', 'snippets', 'buffer' },
+        -- VimTeX completes citations/labels/commands through its omnifunc
+        per_filetype = {
+            tex = { 'lsp', 'omni', 'snippets', 'buffer' },
+            plaintex = { 'lsp', 'omni', 'snippets', 'buffer' },
+            bib = { 'lsp', 'omni', 'snippets', 'buffer' },
+        },
+    },
 })
 
 local ls = require('luasnip')

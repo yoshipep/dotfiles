@@ -50,6 +50,23 @@ vim.lsp.enable('clangd')
 vim.lsp.config('pyright', { settings = { pyright = { disableTaggedHints = false } } })
 vim.lsp.enable({ 'pyright', 'bashls', 'asm_lsp' })
 
+-- LaTeX grammar/spell (ltex-ls-plus); F2/F3 switch its language, see keybindings.vim
+vim.lsp.config('ltex_plus', {
+    filetypes = { 'tex', 'bib' },
+    settings = { ltex = { language = 'en-US' } },
+})
+vim.lsp.enable('ltex_plus')
+
+local M = {}
+
+function M.set_ltex_language(lang)
+    for _, client in ipairs(vim.lsp.get_clients({ name = 'ltex_plus' })) do
+        client.settings = vim.tbl_deep_extend('force', client.settings or {}, { ltex = { language = lang } })
+        client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+    end
+    vim.lsp.config('ltex_plus', { settings = { ltex = { language = lang } } })
+end
+
 -- rust, json, docker
 vim.lsp.enable({ 'rust_analyzer', 'jsonls', 'dockerls' })
 
@@ -151,3 +168,5 @@ vim.api.nvim_create_autocmd('LspAttach', {
         end
     end,
 })
+
+return M
