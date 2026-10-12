@@ -72,3 +72,10 @@ lua require('mkdnflow_config')
 
 " Plugin-specific configurations
 source ~/.config/nvim/plugins.conf/plugins.vim
+lua require('telescope_config')
+lua require('devicons_config')
+lua require('neotree_config')
+lua require('treesitter_config')
+lua require('ansi_config')
+lua require('gitsigns_config')
+lua require('todo_comments_config')

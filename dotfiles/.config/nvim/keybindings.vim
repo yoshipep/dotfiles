@@ -1,6 +1,8 @@
 " ============================================================================
 " KEYBINDINGS
 " ============================================================================
+" LSP keys (gd, gy, gi, gr, K, <leader>rn, <leader>a/ac/qf, <leader>[ ], <leader>la/lo/ls)
+" are buffer-local, set when a language server attaches: see lua/lsp_config.lua.
 
 " --- File Operations ---
 " Refresh current file
