@@ -48,10 +48,7 @@ Plug 'neoclide/coc.nvim', {'branch': 'release'}
 Plug 'antoinemadec/coc-fzf'
 
 " Syntax & Language Support
-Plug 'sheerun/vim-polyglot'
 Plug 'nvim-treesitter/nvim-treesitter', { 'branch': 'main', 'do': ':TSUpdate' }
-Plug 'bfrg/vim-c-cpp-modern'
-Plug 'ekalinin/Dockerfile.vim'
 Plug 'lervag/vimtex'
 Plug 'drinkataco/vim-md-toc'
 Plug 'OXY2DEV/markview.nvim'

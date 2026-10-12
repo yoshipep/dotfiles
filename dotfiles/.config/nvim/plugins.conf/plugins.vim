@@ -80,21 +80,8 @@ augroup END
 nnoremap <leader>sp :SphinxServe<CR>
 
 " --- C/C++ ---
+" .h is C, not C++ (filetype detection)
 let g:c_syntax_for_h = 1
-
-let g:cpp_function_highlight = 1
-
-let g:cpp_attributes_highlight = 1
-
-let g:cpp_member_highlight = 1
-
-let g:cpp_type_name_highlight = 1
-
-let g:cpp_operator_highlight = 0
-
-let g:cpp_builtin_types_as_statement = 0
-
-let g:cpp_simple_highlight = 1
 
 " --- Telescope ---
 lua << EOF
@@ -186,19 +173,25 @@ require('nvim-treesitter').install({
   "c", "cpp", "python", "bash", "lua", "vim", "vimdoc",
   "markdown", "markdown_inline", "latex", "rust",
   "json", "yaml", "toml", "html", "css", "javascript",
-  "make", "cmake"
+  "make", "cmake", "dockerfile", "gitignore", "gitcommit", "diff", "regex"
 })
 
 vim.api.nvim_create_autocmd('FileType', {
   pattern = {
     "c", "cpp", "python", "bash", "sh", "lua", "vim", "help",
     "markdown", "rust", "json", "yaml", "toml",
-    "html", "css", "javascript", "make", "cmake", "tex"
+    "html", "css", "javascript", "make", "cmake", "dockerfile"
   },
   callback = function()
     pcall(vim.treesitter.start)
     vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
   end,
+})
+
+-- Highlight only (no indent queries). tex is left to VimTeX's own syntax.
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { "gitignore", "gitcommit", "diff" },
+  callback = function() pcall(vim.treesitter.start) end,
 })
 EOF
 
