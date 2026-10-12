@@ -44,8 +44,6 @@ Plug 'sainnhe/sonokai'
 Plug 'sainnhe/everforest'
 
 " LSP & Completion
-Plug 'neoclide/coc.nvim', {'branch': 'release'}
-Plug 'antoinemadec/coc-fzf'
 Plug 'neovim/nvim-lspconfig'
 Plug 'saghen/blink.cmp', { 'tag': 'v1.10.2' }
 Plug 'L3MON4D3/LuaSnip', { 'tag': 'v2.5.0' }
@@ -105,17 +103,15 @@ execute 'colorscheme ' . s:selected_theme
 " Highlight ColorColumn at 120 characters
 call matchadd('ColorColumn', '\%120v', 120)
 
-" Custom colors for CoC menu - ensure selected item is visible
+" Highlights that themes may override: re-applied on every colorscheme load
 func! s:my_colors_setup() abort
-  " CoC menu selection - solid orange background with underline
-  highlight CocMenuSel ctermbg=208 ctermfg=235 cterm=bold,underline guibg=#ff8700 guifg=#282828 gui=bold,underline
-  " Standard Vim popup menu selection
+  " Completion menu selection (blink.cmp links its selection to PmenuSel)
   highlight PmenuSel ctermbg=208 ctermfg=235 cterm=bold guibg=#ff8700 guifg=#282828 gui=bold
   " Darken inactive preprocessor regions (#ifdef blocks that won't compile)
   highlight InactiveRegion ctermfg=243 guifg=#666666
 endfunc
 
-augroup colorscheme_coc_setup | au!
+augroup colorscheme_setup | au!
   au ColorScheme * call s:my_colors_setup()
   au VimEnter * call s:my_colors_setup()
 augroup END
@@ -135,6 +131,5 @@ lua require('markview_config')
 lua require('mkdnflow_config')
 
 " Plugin-specific configurations
-source ~/.config/nvim/plugins.conf/coc.vim
 source ~/.config/nvim/plugins.conf/vim-airline.vim
 source ~/.config/nvim/plugins.conf/plugins.vim

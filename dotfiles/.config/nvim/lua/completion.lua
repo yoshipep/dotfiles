@@ -1,16 +1,4 @@
--- Completion (blink.cmp) and snippets (LuaSnip). Only enabled for the filetypes
--- whose LSP already runs natively; coc still completes everything else.
--- Extend native_fts as languages move off coc.
-
-local native_fts = {}
-for _, ft in ipairs({
-    'c', 'cpp', 'objc', 'objcpp', 'cuda',
-    'python', 'sh', 'bash', 'asm', 'vmasm',
-    'rust', 'json', 'jsonc', 'dockerfile',
-    'tex', 'plaintex', 'bib',
-}) do
-    native_fts[ft] = true
-end
+-- Completion (blink.cmp) and snippets (LuaSnip).
 
 local function after_word()
     local col = vim.fn.col('.') - 1
@@ -18,10 +6,9 @@ local function after_word()
 end
 
 require('blink.cmp').setup({
-    enabled = function() return native_fts[vim.bo.filetype] == true end,
     keymap = {
         preset = 'default',
-        -- Same feel as the coc mappings: Tab confirms / jumps / indents / triggers
+        -- Tab confirms / jumps / indents / triggers
         ['<Tab>'] = {
             'select_and_accept',
             'snippet_forward',

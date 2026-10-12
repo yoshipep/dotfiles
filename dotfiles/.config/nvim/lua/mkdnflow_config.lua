@@ -3,7 +3,7 @@ require('mkdnflow').setup({
     tables = false,  -- markview renders tables; keep mkdnflow off them (and off insert <Tab>)
   },
   mappings = {
-    -- coc owns insert <Tab>/<S-Tab>; belt-and-suspenders even with tables off
+    -- blink owns insert <Tab>/<S-Tab>; belt-and-suspenders even with tables off
     MkdnTableNextCell = false,
     MkdnTablePrevCell = false,
     -- keep core vim keys in markdown buffers

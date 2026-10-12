@@ -139,10 +139,10 @@ installSyspkgsFull() {
 # pipx: Python CLI tools + pinned clangd/clang-format. User-space.
 # clangd/clang-format are pinned here (PyPI wheels bundle the real native LLVM
 # binaries) instead of apt, so C/C++ LSP + formatting are reproducible across
-# distros. Neovim formats via clangd (CocAction), and clangd embeds clang-format;
+# distros. Neovim runs clangd natively and formats with clang-format (Neoformat);
 # apt ships wildly varying versions (e.g. clangd 14 on Ubuntu 22.04, which can't
 # parse newer .clang-format keys like SortUsingDeclarations: LexicographicNumeric).
-# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so coc-clangd picks these up.
+# ~/.local/bin is ahead of /usr/bin on PATH (.zshenv), so Neovim picks these up.
 # Bump LLVM_PIN to upgrade (keep clangd and clang-format on the same version).
 installPipxTools() {
 	echo "[!] Installing pipx tools (clangd/clang-format pinned)..."
@@ -233,7 +233,8 @@ installAlacritty() {
 	cargo install --locked alacritty --features=x11,wayland
 }
 
-# Node.js -> /usr/local (root) + npm globals (~/.npm-global). Needed for CoC.
+# Node.js -> /usr/local (root) + npm globals (~/.npm-global). Needed for the npm language
+# servers, prettier and markdown-preview.
 installNode() {
 	echo "[!] Installing Node.js + npm globals..."
 	# --yes is required: the installer prompts "[yN]" (defaulting to No) and
@@ -606,8 +607,6 @@ installNvimPlugins() {
 	python3 -m venv "$NVIM_VENV"
 	"$NVIM_VENV/bin/pip" install --quiet --upgrade pip pynvim isort
 	/opt/neovim/bin/nvim --headless +PlugInstall +qa
-	/opt/neovim/bin/nvim --headless +CocUpdate +qa
-	/opt/neovim/bin/nvim --headless +"CocInstall -sync coc-snippets coc-json coc-rust-analyzer coc-pyright coc-clangd coc-sh coc-prettier coc-docker" +qa
 	/opt/neovim/bin/nvim --headless +PlugUpdate +qa
 	/opt/neovim/bin/nvim --headless +PlugUpgrade +qa
 	/opt/neovim/bin/nvim --headless +"UpdateRemotePlugins" +qa
@@ -844,7 +843,7 @@ reg() { # name fn root(y/n) deps desc
 # Components without a check are trusted on exit status alone (the default).
 check() { COMP_CHECK["$1"]="$2"; }
 
-# nvim-plugins runs headless nvim, which exits 0 even when PlugInstall/CocInstall
+# nvim-plugins runs headless nvim, which exits 0 even when PlugInstall
 # or a treesitter build fails -- exactly how the missing tree-sitter CLI hid for
 # a whole run. Assert the artifacts actually landed.
 checkNvimPlugins() {
@@ -853,7 +852,6 @@ checkNvimPlugins() {
 	local nparser
 	nparser=$(ls "$HOME/.local/share/nvim/site/parser" 2>/dev/null | wc -l)
 	[ "$nparser" -ge 10 ] || { echo "  [check] only $nparser treesitter parsers built (expected >=10)"; ok=1; }
-	[ -n "$(ls "$HOME/.config/coc/extensions/node_modules" 2>/dev/null)" ] || { echo "  [check] no CoC extensions installed"; ok=1; }
 	return $ok
 }
 
@@ -871,7 +869,7 @@ reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"
 reg plugins      installPlugins        n "shell"                      "vim-plug, powerlevel10k, zsh-autosuggestions"
-reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/Coc/TS)"
+reg nvim-plugins installNvimPlugins    n "neovim node plugins config treesitter-cli" "Neovim plugins (headless PlugInstall/TS)"
 check nvim-plugins checkNvimPlugins
 reg font         installFont           n "syspkgs-core"               "0xProto Nerd Font"
 reg theme        selectTheme           n ""                           "Pick Neovim colorscheme"

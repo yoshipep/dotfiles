@@ -1,4 +1,4 @@
--- Native LSP. Languages move here from coc one group at a time; coc keeps the rest.
+-- Native LSP clients, keymaps and diagnostics.
 -- Server defaults (filetypes, root markers) come from nvim-lspconfig.
 
 vim.lsp.config('*', {
@@ -72,7 +72,7 @@ vim.lsp.enable({ 'rust_analyzer', 'jsonls', 'dockerls' })
 
 vim.diagnostic.config({ severity_sort = true, float = { border = 'single' } })
 
--- Show the diagnostic under the cursor once it rests there (coc's default). The
+-- Show the diagnostic under the cursor once it rests there. The
 -- float closes on cursor move. CursorHold waits 'updatetime', whose default is 4s.
 vim.o.updatetime = 300
 vim.api.nvim_create_autocmd('CursorHold', {
@@ -83,7 +83,7 @@ vim.api.nvim_create_autocmd('CursorHold', {
     end,
 })
 
--- Reference highlights (the groups coc used to define)
+-- Reference highlights (themes may override)
 for _, g in ipairs({ 'LspReferenceText', 'LspReferenceRead', 'LspReferenceWrite' }) do
     vim.api.nvim_set_hl(0, g, { link = 'CursorColumn', default = true })
 end
@@ -121,8 +121,7 @@ local function rename_and_save()
     end)
 end
 
--- Buffer-local, so they override the global coc mappings in coc.vim only where a
--- native client is attached.
+-- Buffer-local, so they exist only where a client is attached.
 vim.api.nvim_create_autocmd('LspAttach', {
     callback = function(args)
         local buf = args.buf

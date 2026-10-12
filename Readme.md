@@ -38,7 +38,7 @@ The installer is a component registry — each component declares whether it nee
 - **Base**: `syspkgs-core` / `syspkgs-full` (apt), `config` (dotfiles floor)
 - **Languages**: `rust`, `go`, `node`
 - **Shell**: `shell` (zsh, oh-my-zsh, fzf), `plugins` (powerlevel10k, zsh-autosuggestions)
-- **Editor**: `neovim`, `nvim-plugins` (headless PlugInstall/CoC/treesitter + a pynvim venv for the isort rplugin), `theme`, `treesitter-cli`, `cargo-tools` (eza, bat, ripgrep, git-delta, asm-lsp, stylua), `ltex` (ltex-ls-plus), `pipx-tools` (clangd, clang-format, pyright)
+- **Editor**: `neovim`, `nvim-plugins` (headless PlugInstall/treesitter + a pynvim venv for the isort rplugin), `theme`, `treesitter-cli`, `cargo-tools` (eza, bat, ripgrep, git-delta, asm-lsp, stylua), `ltex` (ltex-ls-plus), `pipx-tools` (clangd, clang-format, pyright)
 - **Terminal / Desktop**: `alacritty`, `font` (0xProto Nerd Font), `sway` (Wayland desktop: WM, waybar, gtklock, mako, fuzzel + wifi picker, mate-polkit, screenshots)
 - **Dev tools**: `docker`, `libvirt` (QEMU/KVM + virt-manager), `gdb` (+ `gef-gep`), `ghidra`, `lazydocker`
 - **Network**: `network` (firewall + static IP + systemd services)
@@ -51,7 +51,7 @@ On non-apt or no-sudo boxes, `syspkgs-*` are skipped; user-space components stil
 
 ## Editor & Docs Workflow
 
-- **Neovim**: LSP + CoC + treesitter, 8 themes.
+- **Neovim**: native LSP + blink.cmp + treesitter, 8 themes.
 - **Markdown / notes**: markview renders inline automatically (normal/insert/command modes; hybrid on insert shows raw source only on the line being edited). Browser preview via `markdown-preview.nvim` — `<leader>mp` opens one tab that follows the active buffer; `mkdnflow` navigates between note files (`<CR>` follow link, `<BS>`/`<Del>` history).
 - **Sphinx**: `sphinx-serve [dir]` (or `:SphinxServe` / `<leader>sp` in nvim) — creates a per-project venv, installs its requirements, and live-reloads the build in the browser.
 - **PDFs**: evince (vimtex viewer).
@@ -199,7 +199,7 @@ Built from source in `/opt/gdb`:
 │   ├── ulogd.conf               # Firewall logging config
 │   ├── libvirt/                 # VM network definitions (vmmail/vmweb/vmdev, open bridges)
 │   └── .config/
-│       ├── nvim/                # Neovim (LSP, CoC, treesitter, markview, markdown-preview, mkdnflow)
+│       ├── nvim/                # Neovim (LSP, blink.cmp, treesitter, markview, markdown-preview, mkdnflow)
 │       ├── alacritty/           # Alacritty (0xProto Nerd Font, tmux integration)
 │       ├── sway/                # Sway WM config
 │       ├── waybar/              # Waybar (config, style, to-do TUI)
