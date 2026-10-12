@@ -1,0 +1,47 @@
+snippet shebang bash shebang
+	#!/bin/bash
+
+snippet description Add description to the program
+	: '
+	 * $0
+	 * Author: $1 <$2>
+	 * Date: $3
+	'
+
+snippet scriptmain Bash script structure
+	#!/bin/bash
+
+	# Function to print usage information
+	usage() {
+	    echo "Usage: \$0 [-h] [-f filename] [-n count]" 1>&2
+	    echo "  -h           Display this help message and exit"
+	    echo "  -f filename  Specify the input file"
+	    echo "  -n count     Specify the number of lines to read"
+	    exit 1
+	}
+
+	# Default values for command-line arguments
+	filename=""
+	count=10
+
+	# Parse command-line arguments
+	while getopts ":hf:n:" opt; do
+	    case \${opt} in
+	        h ) usage ;;
+	        f ) filename=\$OPTARG ;;
+	        n ) count=\$OPTARG ;;
+	        \? ) echo "Invalid option: -\$OPTARG" >&2; usage ;;
+	        : ) echo "Option -\$OPTARG requires an argument" >&2; usage ;;
+	    esac
+	done
+
+snippet filexists Check if a file exists or not
+	# Check if input file exists
+	if [ ! -f "\$filename" ]; then
+	    echo "Input file '\$filename' not found" >&2
+	    usage
+	fi
+
+snippet readlines Read the specified number of lines from file
+	# Read the specified number of lines from the input file
+	head -n \$count "\$filename"

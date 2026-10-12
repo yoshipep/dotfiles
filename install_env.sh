@@ -147,7 +147,7 @@ installSyspkgsFull() {
 installPipxTools() {
 	echo "[!] Installing pipx tools (clangd/clang-format pinned)..."
 	local LLVM_PIN="19.1.7"
-	pipx install autopep8 isort "clangd==${LLVM_PIN}" "clang-format==${LLVM_PIN}"
+	pipx install autopep8 isort pyright "clangd==${LLVM_PIN}" "clang-format==${LLVM_PIN}"
 }
 
 # Go toolchain -> /usr/local (root). Needed for lazydocker and other Go tools.
@@ -506,8 +506,6 @@ installConfigDeploy() {
 	# Neovim config + snippet symlinks
 	mkdir -p "$HOME/.config"
 	cp -r "$REPO_DIR/dotfiles/.config/nvim" "$HOME/.config/"
-	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/s.snippets"
-	ln -sf "$HOME/.config/nvim/custom-snippets/asm.snippets" "$HOME/.config/nvim/custom-snippets/S.snippets"
 
 	# Shell / git / editor / claude / alacritty dotfiles
 	cd "$HOME"
@@ -846,7 +844,7 @@ reg syspkgs-full installSyspkgsFull    y ""                           "apt: full
 reg rust         installRust           n ""                           "Rust/Cargo (rustup)"
 reg go           installGo             y ""                           "Go toolchain"
 reg node         installNode           y ""                           "Node.js + npm globals"
-reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format, autopep8, isort (pinned)"
+reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format (pinned), autopep8, isort, pyright"
 reg treesitter-cli installTreesitterCli n ""                          "tree-sitter CLI (prebuilt, no Rust needed)"
 reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta, stylua"
 reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"

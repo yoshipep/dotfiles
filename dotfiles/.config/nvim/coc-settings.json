@@ -18,19 +18,7 @@
     "line-length": false
   },
   "clangd.enabled": false,
-  "languageserver": {
-    "bash": {
-      "command": "bash-language-server",
-      "args": ["start"],
-      "filetypes": ["sh"],
-      "ignoredRootPaths": ["~"]
-    },
-    "asm-lsp": {
-      "command": "asm-lsp",
-      "filetypes": ["asm", "s", "S"],
-      "rootPatterns": [".asm-lsp.toml", ".git"]
-    }
-  },
+  "pyright.enable": false,
   "coc.source.vimtex.filetypes": ["tex", "latex"],
   "coc.source.vimtex.enable": true,
   "ltex.enabled": ["latex", "bibtex"],

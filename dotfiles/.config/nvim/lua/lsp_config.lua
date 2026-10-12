@@ -45,7 +45,23 @@ vim.lsp.config('clangd', {
 })
 vim.lsp.enable('clangd')
 
+-- python, shell, assembly (defaults from nvim-lspconfig)
+-- lspconfig sets disableTaggedHints=true, which hides pyright's faded unused-import hints
+vim.lsp.config('pyright', { settings = { pyright = { disableTaggedHints = false } } })
+vim.lsp.enable({ 'pyright', 'bashls', 'asm_lsp' })
+
 vim.diagnostic.config({ severity_sort = true, float = { border = 'single' } })
+
+-- Show the diagnostic under the cursor once it rests there (coc's default). The
+-- float closes on cursor move. CursorHold waits 'updatetime', whose default is 4s.
+vim.o.updatetime = 300
+vim.api.nvim_create_autocmd('CursorHold', {
+    callback = function()
+        if vim.api.nvim_get_mode().mode == 'n' then
+            vim.diagnostic.open_float({ scope = 'cursor', focus = false })
+        end
+    end,
+})
 
 -- Reference highlights (the groups coc used to define)
 for _, g in ipairs({ 'LspReferenceText', 'LspReferenceRead', 'LspReferenceWrite' }) do

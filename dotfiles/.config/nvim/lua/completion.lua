@@ -2,7 +2,13 @@
 -- whose LSP already runs natively; coc still completes everything else.
 -- Extend native_fts as languages move off coc.
 
-local native_fts = { c = true, cpp = true, objc = true, objcpp = true, cuda = true }
+local native_fts = {}
+for _, ft in ipairs({
+    'c', 'cpp', 'objc', 'objcpp', 'cuda',
+    'python', 'sh', 'bash', 'asm', 'vmasm',
+}) do
+    native_fts[ft] = true
+end
 
 local function after_word()
     local col = vim.fn.col('.') - 1
@@ -36,6 +42,8 @@ require('blink.cmp').setup({
 
 local ls = require('luasnip')
 ls.filetype_extend('cpp', { 'c' })
+ls.filetype_extend('bash', { 'sh' })
+ls.filetype_extend('vmasm', { 'asm' })
 
 -- snipmate-format files, one per filetype
 require('luasnip.loaders.from_snipmate').lazy_load({
