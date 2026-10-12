@@ -38,7 +38,7 @@ The installer is a component registry — each component declares whether it nee
 - **Base**: `syspkgs-core` / `syspkgs-full` (apt), `config` (dotfiles floor)
 - **Languages**: `rust`, `go`, `node`
 - **Shell**: `shell` (zsh, oh-my-zsh, fzf), `plugins` (powerlevel10k, zsh-autosuggestions)
-- **Editor**: `neovim`, `nvim-plugins` (headless PlugInstall/CoC/treesitter + a pynvim venv for the isort rplugin), `theme`, `treesitter-cli`, `cargo-tools` (eza, bat, ripgrep, git-delta, asm-lsp), `pipx-tools` (clangd, clang-format)
+- **Editor**: `neovim`, `nvim-plugins` (headless PlugInstall/CoC/treesitter + a pynvim venv for the isort rplugin), `theme`, `treesitter-cli`, `cargo-tools` (eza, bat, ripgrep, git-delta, asm-lsp, stylua), `pipx-tools` (clangd, clang-format)
 - **Terminal / Desktop**: `alacritty`, `font` (0xProto Nerd Font), `sway` (Wayland desktop: WM, waybar, gtklock, mako, fuzzel + wifi picker, mate-polkit, screenshots)
 - **Dev tools**: `docker`, `libvirt` (QEMU/KVM + virt-manager), `gdb` (+ `gef-gep`), `ghidra`, `lazydocker`
 - **Network**: `network` (firewall + static IP + systemd services)

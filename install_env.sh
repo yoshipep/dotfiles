@@ -107,7 +107,7 @@ installSyspkgsCore() {
 		python3-pip pipx "$PYTHON_VENV"
 		htop libclang-dev
 		wl-clipboard xclip
-		shellcheck tmux tmuxinator universal-ctags
+		shellcheck shfmt tmux tmuxinator universal-ctags
 		libssl-dev pkg-config
 		cmake libfreetype-dev libfontconfig1-dev libxcb-xfixes0-dev libxkbcommon-dev
 		unzip fontconfig
@@ -194,7 +194,7 @@ installTreesitterCli() {
 	fi
 }
 
-# cargo CLI tools: asm-lsp, eza, bat, ripgrep, git-delta. User-space. Depends: rust.
+# cargo CLI tools: asm-lsp, eza, bat, ripgrep, git-delta, stylua. User-space. Depends: rust.
 # tree-sitter is NOT here — it comes prebuilt from treesitter-cli.
 installCargoTools() {
 	echo "[!] Installing cargo tools..."
@@ -204,6 +204,7 @@ installCargoTools() {
 	cargo install --locked bat
 	cargo install --locked ripgrep
 	cargo install --locked git-delta
+	cargo install --locked stylua
 }
 
 # Alacritty (own component: GUI-only, needs system -dev libs). User-space build. Depends: rust.
@@ -848,7 +849,7 @@ reg go           installGo             y ""                           "Go toolch
 reg node         installNode           y ""                           "Node.js + npm globals"
 reg pipx-tools   installPipxTools      n "syspkgs-core"               "clangd, clang-format, autopep8, isort (pinned)"
 reg treesitter-cli installTreesitterCli n ""                          "tree-sitter CLI (prebuilt, no Rust needed)"
-reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta"
+reg cargo-tools  installCargoTools     n "rust treesitter-cli"        "asm-lsp, eza, bat, ripgrep, git-delta, stylua"
 reg alacritty    installAlacritty      n "rust syspkgs-core"          "Alacritty terminal (cargo build)"
 reg shell        installShell          y "syspkgs-core"               "zsh + oh-my-zsh + fzf"
 reg neovim       installNeovim         y ""                           "Neovim binary -> /opt"

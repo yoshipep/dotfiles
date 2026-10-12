@@ -6,7 +6,7 @@
 let g:neoformat_clangformat_path = '/usr/bin/clang-format'
 let g:neoformat_clangformat = {
         \ 'exe': 'clang-format',
-        \ 'args': ['-style=file', '-fallback-style=Google'],
+        \ 'args': ['-style=file', '-fallback-style=LLVM'],
         \ 'stdin': 1,
         \ }
 let g:neoformat_enabled_c = ['clangformat']
