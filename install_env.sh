@@ -363,7 +363,8 @@ installGdb() {
 	local GDB_TAG="gdb-16.3-release"
 	git clone --depth 1 --branch "$GDB_TAG" https://sourceware.org/git/binutils-gdb.git .
 	git apply --3way "$HOME/patches/gdb.patch"
-	CFLAGS="-O2" ./configure --enable-targets=all \
+	CFLAGS="-O2 -march=native -pipe" \
+	CXXFLAGS="-O2 -march=native -pipe" ./configure --enable-targets=all \
 		--with-system-readline \
 		--with-python=/usr/bin/python3 \
 		--enable-gdbserver \
