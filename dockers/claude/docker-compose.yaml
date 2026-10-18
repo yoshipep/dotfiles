@@ -21,6 +21,7 @@ services:
     environment:
       - CLAUDE_CONFIG_DIR=/home/claude/.claude
       - TZ=Europe/Madrid
+      - COLORTERM=truecolor
     stdin_open: true
     tty: true
     restart: unless-stopped
