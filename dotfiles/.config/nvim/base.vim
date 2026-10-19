@@ -47,6 +47,8 @@ call matchadd('ColorColumn', '\%120v', 120)
 func! s:my_colors_setup() abort
   " Completion menu selection (blink.cmp links its selection to PmenuSel)
   highlight PmenuSel ctermbg=208 ctermfg=235 cterm=bold guibg=#ff8700 guifg=#282828 gui=bold
+  " Column-120 marker (matchadd above): themes make it a faint grey
+  highlight ColorColumn ctermbg=88 guibg=#870000
   " Darken inactive preprocessor regions (#ifdef blocks that won't compile)
   highlight InactiveRegion ctermfg=243 guifg=#666666
 endfunc
