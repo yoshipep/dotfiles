@@ -1,6 +1,8 @@
 " ============================================================================
 " KEYBINDINGS
 " ============================================================================
+" LSP keys (gd, gy, gi, gr, K, <leader>rn, <leader>a/ac/qf, <leader>[ ], <leader>la/lo/ls)
+" are buffer-local, set when a language server attaches: see lua/lsp_config.lua.
 
 " --- File Operations ---
 " Refresh current file
@@ -15,18 +17,10 @@ nnoremap <M-w> :bwipeout <CR>
 nnoremap <M-W> :bwipeout!<CR>
 
 " --- Configuration ---
-" Edit init.vim and cd to its directory
-nnoremap <leader>s :edit $MYVIMRC <bar> lcd %:p:h<CR>
-" Reload init.vim configuration
-nnoremap <leader>r :source $MYVIMRC<CR>
-" Create snippet from selected text
-vnoremap <leader>cs <Plug>(coc-convert-snippet)
-
-" --- Tab Navigation ---
-" Next / previous / close tab
-nnoremap <M-J> :tabNext <CR>
-nnoremap <M-K> :tabprevious <CR>
-nnoremap <M-Q> :tabclose <CR>
+" Edit base.vim and cd to its directory
+nnoremap <leader>s :edit ~/.config/nvim/base.vim <bar> lcd %:p:h<CR>
+" Reload base.vim configuration
+nnoremap <leader>r :source ~/.config/nvim/base.vim<CR>
 
 " --- Buffer Navigation ---
 nnoremap <silent> <C-J> :bprevious <CR>
@@ -42,24 +36,12 @@ nmap <leader>8 <Plug>AirlineSelectTab8
 nmap <leader>9 <Plug>AirlineSelectTab9
 
 " --- Window/Split Navigation ---
-nnoremap <leader>vb :ls<cr>:vertical sb<space>
 nnoremap <silent> <leader><Up>    :wincmd k<CR>
 nnoremap <silent> <leader><Down>  :wincmd j<CR>
 nnoremap <silent> <leader><Left>  :wincmd h<CR>
 nnoremap <silent> <leader><Right> :wincmd l<CR>
 
 " --- Word Manipulation ---
-" Delete current word (insert / normal mode)
-inoremap <M-d> <esc>"_ciw
-nnoremap <M-d> "_diw
-" Backward kill word -- deletes to the start of the word (insert / normal mode)
-inoremap <M-BS> <space><esc>"_cb<Del>
-nnoremap <M-BS> "_db
-" Forward kill word -- deletes to the end of the word (insert / normal mode)
-inoremap <M-Del> <space><esc>l"_cw<BS>
-nnoremap <M-Del> "_de
-" Remove word after search
-nnoremap _ diw
 " Remove backwards to start of line
 nnoremap Q d0
 
@@ -79,16 +61,12 @@ vnoremap <leader>p "_dP
 nnoremap <silent> <C-A> :Neotree toggle<CR>
 nnoremap <silent> <C-G> :Neotree reveal<CR>
 
-" --- Commentary ---
-nnoremap <space>/ :Commentary<CR>
-vnoremap <space>/ :Commentary<CR>
-
 " --- Documentation Generator (Doge) ---
 nmap <silent> <leader>dg <Plug>(doge-generate)
 
 " --- LaTeX ---
-nnoremap <F2> :set spelllang=en_us<CR>:call coc#config('ltex.language', 'en-US')<CR>
-nnoremap <F3> :set spelllang=es_es<CR>:call coc#config('ltex.language', 'es')<CR>
+nnoremap <F2> :set spelllang=en_us<CR>:lua require('lsp_config').set_ltex_language('en-US')<CR>
+nnoremap <F3> :set spelllang=es_es<CR>:lua require('lsp_config').set_ltex_language('es')<CR>
 nnoremap <leader>c <Plug>(vimtex-compile)
 nnoremap <leader>v :VimtexView<CR>
 

@@ -50,7 +50,7 @@ bindings = [
   { key = "Up",    mods = "Control|Shift", chars = "\uE012" },
   { key = "Down",  mods = "Control|Shift", chars = "\uE013" },
   # Maximize / restore (zoom)
-  { key = "X", mods = "Control|Shift", chars = "\u0002z" },
+  { key = "X", mods = "Control|Shift", chars = "\uE050" },
   { key = "F11", action = "ToggleFullScreen" },
   # Rotate panes
   { key = "R", mods = "Super|Shift", chars = "\uE020" },
